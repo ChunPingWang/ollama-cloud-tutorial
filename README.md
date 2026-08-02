@@ -19,9 +19,10 @@
 10. [用 OpenAI SDK 相容層接既有生態系](#10-用-openai-sdk-相容層接既有生態系)
 11. [接上 MCP：不用自己寫工具](#11-接上-mcp不用自己寫工具)
 12. [實際使用情境：GPU 時間計費下的成本控制](#12-實際使用情境gpu-時間計費下的成本控制)
-13. [正式上線前要處理的事](#13-正式上線前要處理的事)
-14. [接框架與可觀測性：LangChain / Langfuse / LangSmith](#14-接框架與可觀測性langchain--langfuse--langsmith)
-15. [結語](#15-結語)
+13. [RAG：為什麼雲端做不了，以及兩條可走的路](#13-rag為什麼雲端做不了以及兩條可走的路)
+14. [正式上線前要處理的事](#14-正式上線前要處理的事)
+15. [接框架與可觀測性：LangChain / Langfuse / LangSmith](#15-接框架與可觀測性langchain--langfuse--langsmith)
+16. [結語](#16-結語)
 
 ---
 
@@ -117,9 +118,9 @@ python-dotenv>=1.0
 
 openai>=1.0             # 第 10 節：OpenAI 相容層
 mcp>=2.0                # 第 11 節：MCP 整合
-langchain>=1.0          # 第 14 節
-langchain-ollama>=1.0   # 第 14 節
-langfuse>=4.0           # 第 14 節
+langchain>=1.0          # 第 15 節
+langchain-ollama>=1.0   # 第 15 節
+langfuse>=4.0           # 第 15 節
 opentelemetry-proto>=1.0  # 選用：假 Langfuse server 解碼 OTLP 用
 ```
 
@@ -188,9 +189,12 @@ https://ollama.com/upgrade
 | `examples/mcp_server_demo.py` | 第 11 節 | 示範用的 MCP Server（工單系統） |
 | `examples/08_mcp_agent.py` | 第 11 節 | MCP ↔ Ollama 橋接 + Agent |
 | `examples/11_model_router.py` | 第 12 節 | 分層路由降本，含成本量測 |
-| `examples/09_langchain_agent.py` | 第 14 節 | LangChain 接雲端 + Langfuse callback |
-| `examples/10_langfuse_tracing.py` | 第 14 節 | 用 `@observe` 追蹤手刻 Agent Loop |
-| `examples/tools/fake_langfuse_server.py` | 第 14 節 | 假的 Langfuse 接收端，免帳號驗證 trace |
+| `examples/corpus/handbook.md` | 第 13 節 | RAG 範例用的示範語料 |
+| `examples/12_rag_cloud_only.py` | 第 13 節 | 純雲端 agentic RAG（BM25，零 embedding） |
+| `examples/13_rag_hybrid.py` | 第 13 節 | 混合式：本地 embedding + 雲端生成 |
+| `examples/09_langchain_agent.py` | 第 15 節 | LangChain 接雲端 + Langfuse callback |
+| `examples/10_langfuse_tracing.py` | 第 15 節 | 用 `@observe` 追蹤手刻 Agent Loop |
+| `examples/tools/fake_langfuse_server.py` | 第 15 節 | 假的 Langfuse 接收端，免帳號驗證 trace |
 
 文章裡的程式碼片段為了自我完整會重複寫 client 設定，實際檔案則統一 `from _client import MODEL, get_client`。直接 `python examples/xx.py` 執行即可，Python 會自動把 `examples/` 加進 import 路徑。
 
@@ -1199,13 +1203,177 @@ def route_and_answer(task: str) -> dict:
 
 **`max_turns` 是帳單的保險絲。** 失控的 Agent Loop 可以在你沒注意時跑掉大量 GPU 時間。
 
-**用 token 數當 context 膨脹的儀表板。** 雖然不直接對應帳單，但第 14 節那張 trace 上 input token 從 200 → 297 → 351 一路長的曲線，是你判斷「該截斷工具輸出了」最直觀的指標。
+**用 token 數當 context 膨脹的儀表板。** 雖然不直接對應帳單，但第 15 節那張 trace 上 input token 從 200 → 297 → 351 一路長的曲線，是你判斷「該截斷工具輸出了」最直觀的指標。
 
 **簡單任務不要開 `think=True`。** 對能關的模型有效；對 `gpt-oss` 系列沒用（見 12.1）。
 
 ---
 
-## 13. 正式上線前要處理的事
+## 13. RAG：為什麼雲端做不了，以及兩條可走的路
+
+### 13.1 先講結論：缺的是 embedding，不是 RAG
+
+網路上「Ollama Cloud + RAG」的教學不少，但幾乎都是拿本地 Ollama 的做法直接改個 host 就貼上來，沒人實際打過那個端點。我打了，結果是：
+
+**Ollama Cloud 的 hosted API 沒有可用的 embedding。**
+
+RAG 有三個環節，它只缺一個：
+
+| 環節 | 誰做 | Ollama Cloud |
+| --- | --- | --- |
+| ① 向量化（embedding） | 模型 | ❌ **沒有** |
+| ② 檢索（相似度／關鍵字比對） | 你的程式 | ✅ 不受影響 |
+| ③ 生成（把檢索結果餵給模型） | 模型 | ✅ 這是它的本業 |
+
+### 13.2 實測證據
+
+```
+POST https://ollama.com/api/embed        → 401 {"error": "unauthorized"}
+POST https://ollama.com/api/embeddings   → 404 {"error": "path \"/api/embeddings\" not found"}
+POST https://ollama.com/v1/embeddings    → 404 {"error": "path \"/v1/embeddings\" not found"}
+```
+
+第一行是關鍵：`/api/embed` **回 401 而不是 404**，代表端點存在但拒絕服務。而且用的是同一把 key——同一支程式打 `gpt-oss:120b` 的 chat 完全正常。所以不是憑證問題，是這個能力沒開。
+
+另外兩個端點連路由都沒有。至於模型清單，`/api/tags` 的 18 個我逐一比對過，`nomic-embed-text`、`mxbai-embed-large`、`embeddinggemma`、`bge-m3`、`all-minilm`、`qwen3-embedding` **全部不在**，一個 embedding 模型都沒有。
+
+### 13.3 為什麼會這樣設計
+
+這其實完全符合它的商業模型。Ollama Cloud **按 GPU 時間計費**，賣點是「跑你本機跑不動的大模型」。而 embedding 模型的特性正好相反：
+
+- **小** — `embeddinggemma` 才幾百 MB，CPU 就跑得動
+- **快** — 單次毫秒級，用 GPU 秒數計價根本收不到錢
+- **呼叫次數極多** — 建索引時每個 chunk 打一次，一萬份文件就是一萬次
+
+embedding 是**最不需要雲端 GPU 的那類工作**。放進按 GPU 時間計費的服務，對雙方都不划算。理解這點之後，「缺 embedding」就不是缺陷，而是定位。
+
+### 13.4 共同的框法：RAG-as-a-tool
+
+在講兩條路之前，先講一件比選型更重要的事：**不要寫固定管線。**
+
+傳統 RAG 是：切塊 → 向量化 → 檢索 top-k → 塞進 prompt → 生成。這條管線只查一次，關鍵字沒抓好就完了。
+
+既然我們前面十二節都在做 Agent，就該用 Agent 的方式做 RAG：**把檢索做成一個工具，讓模型自己決定要不要查、查幾次、換什麼說法再查。**
+
+```python
+def search_handbook(query: str, top_k: int = 3) -> str:
+    """在內部工程手冊中搜尋與問題相關的段落。
+
+    Args:
+        query: 搜尋關鍵字或問題。用具體的詞效果較好，例如「資料庫遷移 回滾」
+        top_k: 要回傳幾個段落，預設 3，最多 5
+
+    Returns:
+        相關段落的內容，每段標明出處與標題
+    """
+```
+
+這其實就是第 7 節 Codebase Agent 的模式——那裡的 `search_code` 本質上就是一個 retrieval tool，只是當時沒叫它 RAG。
+
+系統提示裡有一句是整個 RAG 品質的關鍵：
+
+```
+- **只根據檢索到的內容回答**。手冊沒寫的就說「手冊未涵蓋」，不要用常識補
+```
+
+實測問「公司的年假規定是幾天？」（語料完全沒有），Agent 查完 `list_topics` 就回答「手冊未涵蓋此項內容。」——沒有幻覺。這句約束比任何檢索調校都有效。
+
+### 13.5 方案 B：純雲端，零 embedding
+
+既然不能用向量，就用關鍵字。BM25 手寫不到六十行，不需要任何套件。
+
+中文的麻煩是沒有空格。這裡用 **bigram（相鄰兩字）當詞**，土砲但意外地夠用：
+
+```python
+def _tokenize(text: str) -> list[str]:
+    """中英混合的粗略斷詞。
+
+    中文沒有空格，這裡用 bigram（相鄰兩字）當作詞——土砲但夠用，
+    而且不需要額外的斷詞套件。英文與數字照原樣切。
+    """
+    lowered = text.lower()
+    latin = re.findall(r'[a-z0-9_]+', lowered)
+    han = re.findall(r'[一-鿿]', lowered)
+    bigrams = [han[i] + han[i + 1] for i in range(len(han) - 1)]
+    return latin + han + bigrams
+```
+
+切塊策略也值得一提：**依 Markdown 標題切，不要用固定字元數。** 技術文件的每個 `##` 段落本來就是一個語意單位，這樣切幾乎不會出現「一句話被腰斬」。
+
+跑起來：
+
+```bash
+python examples/12_rag_cloud_only.py "資料庫遷移要注意什麼？"
+```
+
+```
+語料：6 個段落（純關鍵字檢索，零 embedding）
+[第 1 輪檢索] list_topics({})
+[第 2 輪檢索] search_handbook({'query': '資料庫遷移 注意', 'top_k': 5})
+  → 【handbook.md — 資料庫遷移】(相關度 19.0)
+
+依據《資料庫遷移》段落，遷移時需要注意：
+1. 每個 Pull Request 只能包含一個遷移檔…
+```
+
+注意它先 `list_topics` 摸清楚有哪些主題，再決定搜什麼——這是 agentic 的價值，固定管線做不到。
+
+**優點**：完全不碰本地服務，Docker、Serverless、CI 都能跑，跟第 2 節的模式 B 一致。
+
+### 13.6 方案 A：混合式——本地 embedding + 雲端生成
+
+雲端沒有 embedding，但**你本機的 Ollama 有**。兩邊一起用：
+
+```
+向量化  → 本機 http://localhost:11434（embeddinggemma，768 維）
+生成    → 雲端 https://ollama.com（gpt-oss:120b）
+```
+
+```bash
+ollama pull embeddinggemma
+```
+
+```python
+from ollama import Client
+
+client = get_client()                                 # 雲端：負責生成
+local = Client(host='http://localhost:11434')         # 本機：負責向量化
+
+
+def _embed(texts: list[str]) -> list[list[float]]:
+    return local.embed(model='embeddinggemma', input=texts)['embeddings']
+```
+
+這剛好是第 2 節兩種連線模式併用的實例。而且有個常被忽略的好處：**語料不出境**。只有問題和檢索到的片段會送到雲端，整份文件庫留在本地——對有合規要求的場景，這個架構比純雲端更好，不是妥協。
+
+> **踩雷紀錄**：我第一次打本機 `/api/embed` 拿到 `501 This server does not support embeddings. Start it with --embeddings`。看起來像要重啟服務，其實不是——那是因為當時本機只有 `gemma4:12b` 這個**聊天**模型，runner 自然沒開 embedding 支援。`ollama pull` 一個真正的 embedding 模型就好，Ollama 本身不用動。
+
+### 13.7 向量 vs 關鍵字：什麼時候值得付這個複雜度
+
+這是本節最實用的部分。同一個語料，同一批問題，兩種檢索各自撈到什麼（`--compare`）：
+
+| 問題 | 向量檢索 | BM25 |
+| --- | --- | --- |
+| 資料庫遷移要注意什麼？ | 〈資料庫遷移〉✅ | 〈資料庫遷移〉✅ |
+| 告警一直響但都不是真的問題？ | 〈監控與告警〉✅ | 〈監控與告警〉✅ |
+| 出事的時候先做什麼？ | 〈事故處理〉✅ | 〈事故處理〉✅ |
+| 不小心把密碼寫進程式碼了 | 〈密鑰管理〉✅ | 〈密鑰管理〉✅ |
+| **怎麼避免改壞正式環境** | 〈部署流程〉✅ | 〈資料庫遷移〉❌ |
+| **同事寫的東西太大包看不完** | 〈程式碼審查〉✅ | 〈事故處理〉❌ |
+
+結論很清楚，而且跟直覺不太一樣：
+
+**用詞跟文件接近時，BM25 完全夠用，甚至更準。** 前四題兩者一致，而 BM25 不用跑模型、不用建索引、毫秒級回應。我原本以為向量會全面勝出，實測打臉。
+
+**一旦使用者用自己的話問，向量才拉開差距。** 「太大包看不完」對上文件裡的「PR 超過四百行就該拆」——沒有任何字面重疊，BM25 只能瞎猜。
+
+所以判準是：**你的使用者會用文件的詞彙，還是自己的話？** 內部工具、開發者查手冊 → BM25 就好。面向一般使用者的客服、產品問答 → 值得付出 embedding 的複雜度。
+
+還有一個細節值得注意。問「新人第一天該看什麼」（語料完全沒涵蓋）時，向量的最高相似度只有 **0.200**，遠低於命中時的 0.3～0.6。**這個分數可以當作「沒有相關內容」的訊號**——設個門檻，低於它就直接回「找不到」，比讓模型讀一堆不相關的段落再自己判斷可靠。BM25 的分數沒有這種可比性，這是向量檢索另一個不太被提起的優勢。
+
+---
+
+## 14. 正式上線前要處理的事
 
 前面的程式碼是為了讀起來清楚。真的要上線，這幾件事跑不掉：
 
@@ -1236,7 +1404,7 @@ def chat_with_retry(client, max_retries=3, **kwargs):
 第 12 節整節都在講這件事，這裡只補上線相關的兩點：
 
 - **配額與 rate limit**。免費方案除了模型受限（見 3.4），也有速率限制。正式跑之前看一下 [ollama.com/pricing](https://ollama.com/pricing) 的方案配額，並且在程式裡把 429 當成需要退避的錯誤處理。
-- **設預算告警**。GPU 時間計費的好處是可預估，前提是你真的有在看。把第 14 節的 trace 接起來，至少能回答「這個月哪個 Agent 吃掉最多時間」。
+- **設預算告警**。GPU 時間計費的好處是可預估，前提是你真的有在看。把第 15 節的 trace 接起來，至少能回答「這個月哪個 Agent 吃掉最多時間」。
 
 ### 可觀測性
 
@@ -1254,7 +1422,7 @@ def chat_with_retry(client, max_retries=3, **kwargs):
 
 ---
 
-## 14. 接框架與可觀測性：LangChain / Langfuse / LangSmith
+## 15. 接框架與可觀測性：LangChain / Langfuse / LangSmith
 
 前面十二節都是手刻的。這節談什麼時候該把工作交給框架，以及一個比框架更該優先做的事——**可觀測性**。
 
@@ -1346,7 +1514,7 @@ resilient_agent = agent.with_retry(stop_after_attempt=3)
 
 ### 13.3 Langfuse：把「可觀測性」從口號變成東西
 
-第 13 節說「至少把每輪的 `tool_calls` 和 `thinking` 記下來」。Langfuse 就是拿來做這件事的：開源、可自架、與供應商無關。
+第 14 節說「至少把每輪的 `tool_calls` 和 `thinking` 記下來」。Langfuse 就是拿來做這件事的：開源、可自架、與供應商無關。
 
 用 `@observe` 標記，三種 `as_type` 對應 trace 上三種節點：
 
@@ -1498,7 +1666,7 @@ def add(a: int, b: int) -> int:
 
 ---
 
-## 15. 結語
+## 16. 結語
 
 回頭看，整篇文章的核心其實只有第 6 節那個迴圈：
 
@@ -1518,6 +1686,7 @@ Ollama Cloud 在這條路上的貢獻，是把「模型能力」這個變數從�
 
 - **把 MCP 接到底**：第 11 節只接了一台自製 Server，實務上會同時掛 GitHub、檔案系統、資料庫，再加上工具篩選與人工確認關卡
 - **多 Agent 分工**：一個 planner 負責拆任務，多個 worker 平行執行，最後 synthesizer 收斂
+- **RAG 進階**：第 13 節只做到單一檢索工具，實務上還有混合檢索（向量 + BM25 加權合併）、重排模型、以及檢索品質的離線評估
 - **記憶層**：把跨 session 的結論存進向量庫，讓 Agent 記得上次的發現
 - **降本實驗**：拿第 12 節的量測方法，對你自己的流量算一次損益平衡點，再決定路由策略
 
