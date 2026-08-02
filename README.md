@@ -53,6 +53,35 @@ docs/ 各篇彼此獨立，建議當作**參考手冊**——遇到問題再翻�
 
 ---
 
+## 常用指令
+
+專案根目錄有 `Makefile`，不確定要打什麼就先 `make`：
+
+```
+make            列出所有指令
+make setup      建立 venv 並安裝依賴
+make check      環境自檢（API key、可用模型、套件）
+make test       單元測試（0.2 秒，不呼叫模型）
+make eval       RAG 檢索指標（秒級，不呼叫模型）
+
+make serve      在前景啟動 Agent HTTP 服務
+make stop       停掉背景殘留的本機服務
+
+make docker-run     建立映像檔並在背景啟動容器
+make docker-logs    追容器日誌
+make docker-stop    優雅停止並移除容器
+make docker-clean   連映像檔一起刪掉
+
+make status     看看目前有什麼還在跑
+make clean      全部收乾淨
+```
+
+**每個會「留下東西」的指令，都有一個對應的收拾指令。** 這不是潔癖——寫這份教材時我自己就忘記收過跑在背景的伺服器，它一直佔著 8080 並把 API key 留在記憶體裡。`make status` 就是為了避免這件事。
+
+細節見[部署上線](docs/12-deployment.md)。
+
+---
+
 ## 這個 repo 的結構
 
 ```

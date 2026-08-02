@@ -169,9 +169,22 @@ examples/memory.db
 
 ## 4. 完整實測
 
+專案根目錄的 `Makefile` 把下面這些都包好了：
+
+```bash
+make docker-run     # 建映像檔 + 啟動容器 + 自動做健康檢查
+make docker-logs    # 追日誌
+make docker-stop    # 優雅停止並移除容器
+make docker-clean   # 連映像檔一起刪
+make status         # 看看現在有什麼還在跑
+```
+
+底下是它實際做的事：
+
 ```bash
 docker build -t ollama-agent-demo .
-docker run -d -p 8080:8080 -e OLLAMA_API_KEY="$OLLAMA_API_KEY" ollama-agent-demo
+docker run -d --name ollama-agent -p 8080:8080 \
+  -e OLLAMA_API_KEY="$OLLAMA_API_KEY" ollama-agent-demo
 ```
 
 ```
@@ -195,6 +208,48 @@ $ curl -X POST localhost:8080/ask -H 'Content-Type: application/json' \
 | `POST /ask` 沒有 question | `400 缺少 question` |
 | `GET /nope` | `404 not found` |
 | 沒有 `OLLAMA_API_KEY` | 拒絕啟動 |
+
+### 記得收拾
+
+```bash
+$ make docker-clean
+已優雅停止
+已刪除映像檔
+
+$ make status
+── 本機服務 ──
+  （無）
+── 佔用 8080 埠 ──
+  （無）
+── Docker 容器 ──
+  （無）
+── 映像檔 ──
+  （無）
+```
+
+**這節不是湊字數。** 寫這份教材時我自己就忘記收過一台跑在背景的伺服器——它持續佔著 8080，而且把 API key 留在記憶體裡。所以 `Makefile` 的設計原則是：**每個會留下東西的指令，都有一個對應的收拾指令**，外加一個 `make status` 讓你隨時看得見。
+
+`make stop` 本身也踩過一個坑值得記錄。第一版用字串比對找行程：
+
+```make
+pkill -f "python.*18_deploy_server.py"
+```
+
+結果它匹配到**命令列裡剛好含有這個檔名的呼叫端 shell**，把自己的父行程殺了。跟[測試那篇](10-testing.md)裡 `search_code` 搜到測試檔案自己是同一類的自我指涉問題。
+
+改成先從「誰在聽這個埠」找 PID，再驗證那個行程的 cmdline 確實是我們的服務：
+
+```make
+_server_pids:
+	@(ss -tlnpH "sport = :$(PORT)" 2>/dev/null || ...) \
+	  | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u \
+	  | while read -r pid; do \
+	      tr '\0' ' ' < /proc/$$pid/cmdline 2>/dev/null \
+	        | grep -q '18_deploy_server.py' && echo "$$pid"; \
+	    done
+```
+
+**用「這個行程在做什麼」來識別，而不是「它的命令列長什麼樣」。**
 
 ## 5. 狀態要放哪裡
 
