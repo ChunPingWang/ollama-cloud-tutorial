@@ -1,5 +1,17 @@
 ollama>=0.6
 pydantic>=2.0
 python-dotenv>=1.0
+
+# 第 10 節：OpenAI 相容層
 openai>=1.0
+
+# 第 11 節：MCP 整合
 mcp>=2.0
+
+# 第 14 節：LangChain 與 Langfuse
+langchain>=1.0
+langchain-ollama>=1.0
+langfuse>=4.0
+
+# 選用：examples/tools/fake_langfuse_server.py 解碼 OTLP protobuf 用
+opentelemetry-proto>=1.0
