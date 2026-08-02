@@ -64,7 +64,8 @@ examples/              ← 全部可執行，數字就是閱讀順序
   04–07                進階：實戰、結構化輸出、串流、相容層
   08、11–14            專題：MCP、成本、RAG、評估
   09–10                框架與可觀測性
-  15–16                記憶管理、測試
+  15–18                記憶管理、測試、長期記憶、部署
+Dockerfile             ← 209MB，裡面沒有 Ollama（見部署那篇）
 check_docs.py          ← 文件一致性檢查（改文件後跑）
 ```
 
@@ -104,6 +105,8 @@ check_docs.py          ← 文件一致性檢查（改文件後跑）
 | [框架與可觀測性](docs/08-frameworks-observability.md) | 進階 |
 | [多輪對話與 Context 管理](docs/09-memory-context.md) | 中階 |
 | [測試 Agent](docs/10-testing.md) | 中階 |
+| [跨 Session 長期記憶](docs/11-persistent-memory.md) | 進階 |
+| [部署上線](docs/12-deployment.md) | 中階 |
 
 
 ---
@@ -799,7 +802,9 @@ python examples/04_codebase_agent.py "這個專案的進入點在哪裡？主要
 | [正式上線前要處理的事](docs/07-production.md) | 中階 | 要真的上線時 |
 | [接框架與可觀測性：LangChain / Langfuse / LangSmith](docs/08-frameworks-observability.md) | 進階 | 想用框架，或 Agent 出錯時查不出原因 |
 | [多輪對話與 Context 管理](docs/09-memory-context.md) | 中階 | 使用者問第二句「那東京呢？」的時候 |
-| [測試 Agent](docs/10-testing.md) | 中階 | 想安心重構，不必每次人工點一遍 |
+| [測試 Agent](docs/10-testing.md) | 中階 |
+| [跨 Session 長期記憶](docs/11-persistent-memory.md) | 進階 |
+| [部署上線](docs/12-deployment.md) | 中階 | 想安心重構，不必每次人工點一遍 |
 
 完整索引：[docs/README.md](docs/README.md)
 

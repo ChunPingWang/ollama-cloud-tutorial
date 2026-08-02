@@ -3,7 +3,7 @@
 > **難度**：中階　|　**前置**：[核心路徑](../README.md#三條學習路徑)第 1–8 節
 > 用假的 client 把 Agent Loop 測起來，不花 GPU 時間也不看運氣
 
-[← 多輪對話與 Context 管理](09-memory-context.md)　·　[全部進階主題](README.md)　·　[回到核心路徑 →](../README.md)
+[← 多輪對話與 Context 管理](09-memory-context.md)　·　[全部進階主題](README.md)　·　[跨 Session 長期記憶 →](11-persistent-memory.md)
 
 ---
 
@@ -201,4 +201,4 @@ python examples/14_rag_eval.py --end-to-end    # 第四層，要花 GPU 時間
 
 ---
 
-[← 多輪對話與 Context 管理](09-memory-context.md)　·　[全部進階主題](README.md)　·　[回到核心路徑 →](../README.md)
+[← 多輪對話與 Context 管理](09-memory-context.md)　·　[全部進階主題](README.md)　·　[跨 Session 長期記憶 →](11-persistent-memory.md)

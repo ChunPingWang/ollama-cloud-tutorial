@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.env
+docs/
+*.md
+!examples/corpus/*.md
+examples/memory.db
+check_docs.py

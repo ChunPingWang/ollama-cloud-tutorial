@@ -14,6 +14,8 @@
 | [接框架與可觀測性：LangChain / Langfuse / LangSmith](08-frameworks-observability.md) | 進階 | 什麼時候該用框架，以及怎麼看見 Agent 在想什麼 |
 | [多輪對話與 Context 管理](09-memory-context.md) | 中階 | 為什麼 Agent 記不住上一句、三種裁切策略的實測差異 |
 | [測試 Agent](10-testing.md) | 中階 | 用假 client 把 Agent Loop 測起來，0.2 秒跑完 18 個測試 |
+| [跨 Session 長期記憶](11-persistent-memory.md) | 進階 | 把「記住」做成工具，以及記憶衝突為什麼難處理 |
+| [部署上線](12-deployment.md) | 中階 | 服務化的五件事，209MB 映像檔且不含 Ollama |
 
 ---
 
