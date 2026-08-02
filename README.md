@@ -126,18 +126,45 @@ curl https://ollama.com/api/tags -H "Authorization: Bearer $OLLAMA_API_KEY"
 
 ### 3.4 選模型
 
-Agent 對模型只有兩個硬需求：**支援 tools**、**推理夠穩**。目前雲端上適合的：
+Agent 對模型只有兩個硬需求：**支援 tools**、**推理夠穩**。
+
+**不要照官網的模型頁挑，直接問 API。** 網頁上列的名稱跟 hosted API 實際接受的不一定一致（例如網頁有 `qwen3.5:122b`，API 上其實是 `qwen3.5:397b`，打前者會 404）：
+
+```bash
+curl -s https://ollama.com/api/tags -H "Authorization: Bearer $OLLAMA_API_KEY" \
+  | python3 -c "import json,sys; [print(m['name']) for m in json.load(sys.stdin)['models']]"
+```
+
+我實測時（2026-08）拿到 18 個：
+
+```
+deepseek-v4-flash      deepseek-v4-flash:0731   deepseek-v4-pro
+gemma4:31b             glm-5.1                  glm-5.2
+gpt-oss:120b           gpt-oss:20b              kimi-k2.6
+kimi-k2.7-code         kimi-k3                  minimax-m2.7
+minimax-m3             mistral-large-3:675b     nemotron-3-nano:30b
+nemotron-3-super       nemotron-3-ultra         qwen3.5:397b
+```
+
+**但「列出來」不等於「你能用」。** 免費方案下，大部分模型會直接擋：
+
+```
+ResponseError: this model requires a subscription, upgrade for access:
+https://ollama.com/upgrade
+```
+
+實測免費帳號可用的是 `gpt-oss:120b`、`gpt-oss:20b`、`gemma4:31b`。`qwen3.5:397b`、`deepseek-v4-flash`、`glm-5.2` 都要訂閱。所以挑模型的順序是：**先確認方案配額，再談能力**。
 
 | 模型 | 能力 | 適合場景 |
 | --- | --- | --- |
-| `gpt-oss:120b` | Tools, Thinking | 通用首選，工具呼叫穩定，思考過程清楚 |
-| `qwen3.5:122b` | Vision, Tools, Thinking | 需要看圖、或要處理中文長文本 |
-| `kimi-k2.6` | Vision, Tools, Thinking | 長 context、複雜多步驟規劃 |
-| `deepseek-v4-flash` | Tools, Thinking | 要快、要便宜的簡單 Agent |
-| `glm-5.2` | Tools, Thinking | 中文任務表現好 |
-| `qwen3.5:9b` | Vision, Tools, Thinking | 流程驗證完後，拿來降本的小模型 |
+| `gpt-oss:120b` | Tools, Thinking | 通用首選，工具呼叫穩定；免費可用 |
+| `gpt-oss:20b` | Tools, Thinking | 簡單分類、路由，降本用；免費可用 |
+| `gemma4:31b` | Vision, Tools, Thinking | 需要看圖時；免費可用 |
+| `kimi-k2.6` | Vision, Tools, Thinking | 長 context、複雜多步驟規劃；需訂閱 |
+| `qwen3.5:397b` | Vision, Tools, Thinking | 中文長文本；需訂閱 |
+| `glm-5.2` | Tools, Thinking | 中文任務；需訂閱 |
 
-本文統一用 `gpt-oss:120b`。想換就改 `MODEL` 常數（或設 `OLLAMA_MODEL` 環境變數），其他程式一行都不用動。
+本文統一用 `gpt-oss:120b`（全部範例都是用它實跑驗證的）。想換就改 `MODEL` 常數（或設 `OLLAMA_MODEL` 環境變數），其他程式一行都不用動。
 
 ### 3.5 範例檔案一覽
 
@@ -294,7 +321,13 @@ def multiply(a: int, b: int) -> int:
 TOOLS = [add, multiply]
 AVAILABLE = {fn.__name__: fn for fn in TOOLS}
 
-messages = [{'role': 'user', 'content': '請計算 (11434 + 12341) * 412'}]
+# 沒有這句系統提示的話，gpt-oss:120b 這種等級的模型會直接心算完給你答案，
+# 一次工具都不呼叫——迴圈第一輪就結束，看不到 Agent 的行為。
+messages = [
+    {'role': 'system', 'content': '你只能透過 add 與 multiply 工具做算術，'
+                                  '嚴禁自行心算或直接寫出答案。'},
+    {'role': 'user', 'content': '請計算 (11434 + 12341) * 412'},
+]
 
 while True:
     response: ChatResponse = client.chat(
@@ -328,6 +361,8 @@ while True:
 **這 40 行就是 Agent 的全部本質。** 市面上的 Agent 框架，剝掉抽象層之後核心也是這個迴圈。
 
 `think=True` 會讓支援 thinking 的模型把推理過程放進 `message.thinking`，跟 `message.content` 分開。除錯時非常有用——你可以直接看到模型為什麼選了那個工具。
+
+> **實測踩到的坑**：一開始我沒寫那句系統提示，結果 `gpt-oss:120b` 直接心算出 9,795,300，一次工具都沒呼叫，迴圈第一輪就結束。這不是 bug——**能力強的模型會跳過它覺得不必要的工具**。如果某個步驟你「一定」要它走工具（為了正確性、為了留稽核紀錄），就得在系統提示裡明講。
 
 三個立刻要補的防護（下一節的實戰版本會加上）：
 
@@ -505,39 +540,130 @@ python examples/04_codebase_agent.py "這個專案的進入點在哪裡？主要
 
 ## 8. 結構化輸出：讓 Agent 吐出可以直接用的資料
 
-Agent 常常是更大流程裡的一環，下游需要的是 JSON 不是散文。Ollama 支援用 JSON Schema 約束輸出，搭配 Pydantic 最順手。
+Agent 常常是更大流程裡的一環，下游需要的是 JSON 不是散文。
 
-`examples/05_structured_output.py`：
+### 8.1 先講一個雲端的坑：`format` 不會生效
+
+網路上（含 Ollama 官方文件）教的做法是這個：
 
 ```python
-from pydantic import BaseModel, Field
-
-class Finding(BaseModel):
-    file: str = Field(description='檔案路徑')
-    line: int = Field(description='行號')
-    severity: str = Field(description='嚴重程度：high / medium / low')
-    issue: str = Field(description='問題描述')
-
-class ReviewReport(BaseModel):
-    summary: str
-    findings: list[Finding]
-
 response = client.chat(
     model=MODEL,
-    messages=[{'role': 'user', 'content': '審查這段程式碼：\n' + code}],
-    format=ReviewReport.model_json_schema(),
-    options={'temperature': 0},
+    messages=[...],
+    format=ReviewReport.model_json_schema(),   # ← 在雲端上會被忽略
 )
-
 report = ReviewReport.model_validate_json(response.message.content)
+```
+
+**這在本地 `ollama serve` 上有效，在 Ollama Cloud 的 hosted API 上無效。** 我實測過三條路（2026-08，`gpt-oss:120b` 與 `gemma4:31b`）：
+
+| 做法 | 結果 |
+| --- | --- |
+| 原生 `chat(format=<json schema>)` | 被忽略，回傳 Markdown 散文 |
+| 原生 `chat(format='json')` | 被忽略，回傳包在 ` ```json ` 圍籬裡的內容 |
+| OpenAI 相容層 `response_format={'type':'json_schema',...}` | 被忽略，回傳散文 |
+
+直接 `curl` 打 `https://ollama.com/api/chat` 帶 `format` 也一樣，所以不是 SDK 的問題，是雲端端點沒有實作這個約束。照文件寫的話，你會拿到這個：
+
+```
+pydantic_core._pydantic_core.ValidationError: 1 validation error for ReviewReport
+  Invalid JSON: expected value at line 1 column 1 [input_value='以下是 **payment.py**...']
+```
+
+好消息是有兩條路可以走，而且都驗證過能用。
+
+### 8.2 方案 A：借 tool calling 來做 schema 約束（推薦）
+
+關鍵觀察：**`format` 在雲端失效，但 `tools` 是確實生效的。** 那就把想要的 schema 包成一個工具，讓模型「呼叫」它——工具參數天生就是 JSON Schema 約束的產物。
+
+```python
+def structured_via_tool(prompt: str, schema_model: type[BaseModel],
+                        attempts: int = 3) -> BaseModel:
+    """把 Pydantic model 包成一個工具，逼模型以工具參數的形式交出結構化資料。"""
+    tool = {
+        'type': 'function',
+        'function': {
+            'name': 'submit',
+            'description': '提交最終結果。這是唯一的作答方式，必須呼叫。',
+            'parameters': schema_model.model_json_schema(),
+        },
+    }
+    messages = [{'role': 'user', 'content': prompt}]
+
+    for attempt in range(1, attempts + 1):
+        response = client.chat(
+            model=MODEL, messages=messages, tools=[tool],
+            options={'temperature': 0},          # 結構化輸出不需要創意
+        )
+
+        if response.message.tool_calls:
+            args = response.message.tool_calls[0].function.arguments
+            try:
+                return schema_model.model_validate(args)
+            except ValidationError as exc:
+                # 把驗證錯誤回饋給模型，讓它自己修
+                messages.append(response.message)
+                messages.append({
+                    'role': 'tool', 'tool_name': 'submit',
+                    'content': f'資料格式不符，請修正後重新呼叫 submit：{exc}',
+                })
+        else:
+            messages.append(response.message)
+            messages.append({
+                'role': 'user',
+                'content': '請不要用文字回答，必須呼叫 submit 工具提交結果。',
+            })
+
+    raise RuntimeError(f'嘗試 {attempts} 次仍拿不到合法的結構化輸出')
+```
+
+用起來就一行：
+
+```python
+report = structured_via_tool(f'請審查以下程式碼：\n{code}', ReviewReport)
 for f in report.findings:
     print(f'[{f.severity}] {f.file}:{f.line} — {f.issue}')
 ```
 
-兩個實務建議：
+**那個重試迴圈不是裝飾。** 我實測時第一次就沒過，是靠把 `ValidationError` 原文回饋給模型才修正的。這是整個模式的精髓：**Pydantic 的錯誤訊息寫得夠清楚，模型讀得懂，於是驗證器本身變成了一個修正迴路。**
 
-- **`temperature: 0`**。結構化輸出不需要創意。
-- **`format` 和 `tools` 不要同時用**。同時開會互相干擾——模型不知道該輸出 tool call 還是輸出 JSON。正確做法是分兩階段：**Agent Loop 負責蒐集資訊（用 tools），最後再單獨呼叫一次帶 `format` 的請求做總結**。`examples/05_structured_output.py` 示範了這個兩階段模式。
+想讓約束更嚴格就用 `Literal`：
+
+```python
+severity: Literal['high', 'medium', 'low']   # 模型填 'critical' 會被擋下來要求重填
+```
+
+### 8.3 方案 B：prompt + 去圍籬 + 驗證（備援）
+
+比較土砲，但少一層工具的間接性，模型比較不會分心：
+
+```python
+def _strip_fence(text: str) -> str:
+    """模型很愛把 JSON 包在 ```json ... ``` 裡，先拆掉。"""
+    match = re.search(r'```(?:json)?\s*(.*?)```', text, re.S)
+    return (match.group(1) if match else text).strip()
+
+
+messages = [{
+    'role': 'user',
+    'content': f'{prompt}\n\n只輸出符合以下 JSON Schema 的 JSON，不要任何說明文字：\n{schema}',
+}]
+response = client.chat(model=MODEL, messages=messages, options={'temperature': 0})
+report = ReviewReport.model_validate_json(_strip_fence(response.message.content))
+```
+
+`_strip_fence` 是必要的，不是防禦性程式碼——實測中模型**每次**都會加圍籬，即使你叫它不要。
+
+兩個方案的完整版（含重試）都在 `examples/05_structured_output.py`，執行後會兩種都跑一遍給你比較。
+
+### 8.4 跟 Agent Loop 怎麼搭
+
+**不要在 Agent Loop 裡同時掛工具跟 `submit`**，模型會搞不清楚該繼續查資料還是該交卷。分兩階段：
+
+1. **蒐集階段**：Agent Loop 帶著真正的工具跑（第 7 節那套），直到模型不再要求工具
+2. **收斂階段**：把蒐集到的結論當成 prompt，單獨呼叫一次 `structured_via_tool()` 交出 JSON
+
+多花一次呼叫，換來下游拿得到乾淨的資料，划算。
 
 ---
 

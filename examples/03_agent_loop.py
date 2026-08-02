@@ -24,7 +24,14 @@ def multiply(a: int, b: int) -> int:
 TOOLS = [add, multiply]
 AVAILABLE = {fn.__name__: fn for fn in TOOLS}
 
-messages = [{'role': 'user', 'content': '請計算 (11434 + 12341) * 412'}]
+# 沒有這句系統提示的話，gpt-oss:120b 這種等級的模型會直接心算完給你答案，
+# 一次工具都不呼叫——迴圈第一輪就結束，看不到 Agent 的行為。
+# 實務上這也是真的：能力強的模型會跳過你希望它用的工具，要明確要求。
+messages = [
+    {'role': 'system', 'content': '你只能透過 add 與 multiply 工具做算術，'
+                                  '嚴禁自行心算或直接寫出答案。'},
+    {'role': 'user', 'content': '請計算 (11434 + 12341) * 412'},
+]
 
 while True:
     response: ChatResponse = client.chat(
