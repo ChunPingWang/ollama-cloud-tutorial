@@ -18,9 +18,10 @@
 9. [串流與 Thinking：把思考過程秀出來](#9-串流與-thinking把思考過程秀出來)
 10. [用 OpenAI SDK 相容層接既有生態系](#10-用-openai-sdk-相容層接既有生態系)
 11. [接上 MCP：不用自己寫工具](#11-接上-mcp不用自己寫工具)
-12. [正式上線前要處理的事](#12-正式上線前要處理的事)
-13. [接框架與可觀測性：LangChain / Langfuse / LangSmith](#13-接框架與可觀測性langchain--langfuse--langsmith)
-14. [結語](#14-結語)
+12. [實際使用情境：GPU 時間計費下的成本控制](#12-實際使用情境gpu-時間計費下的成本控制)
+13. [正式上線前要處理的事](#13-正式上線前要處理的事)
+14. [接框架與可觀測性：LangChain / Langfuse / LangSmith](#14-接框架與可觀測性langchain--langfuse--langsmith)
+15. [結語](#15-結語)
 
 ---
 
@@ -35,7 +36,7 @@ Ollama Cloud 做的事很直白：**維持 Ollama 原本的 API 與開發體驗�
 實際帶來的好處：
 
 - **本地開發不用改架構**。原本用 `ollama.chat()` 寫的程式，換個 model 名稱就跑在雲上了。
-- **模型選擇一次到位**。`gpt-oss:120b`、`qwen3.5:122b`、`kimi-k2.6`、`deepseek-v4-pro`、`glm-5.2` 這些會做 tool calling 的模型都在上面。
+- **模型選擇一次到位**。`gpt-oss:120b`、`qwen3.5:397b`、`kimi-k2.6`、`deepseek-v4-pro`、`glm-5.2` 這些會做 tool calling 的模型都在上面。
 - **依 GPU 時間計費，不是 token**。對 Agent 這種「一次任務打十幾輪、context 越滾越長」的場景，計費模型比較好預估——你付的是實際算力時間，不會因為把整份文件塞進 context 就被 token 數懲罰。
 - **可以無痛降回本地**。開發時用雲端大模型驗證流程，之後要把某些步驟換成本地小模型省錢，改 model 字串就好。
 
@@ -113,8 +114,13 @@ pip install -r requirements.txt
 ollama>=0.6
 pydantic>=2.0
 python-dotenv>=1.0
-openai>=1.0      # 只有第 10 節的相容層範例會用到
-mcp>=2.0         # 只有第 11 節的 MCP 範例會用到
+
+openai>=1.0             # 第 10 節：OpenAI 相容層
+mcp>=2.0                # 第 11 節：MCP 整合
+langchain>=1.0          # 第 14 節
+langchain-ollama>=1.0   # 第 14 節
+langfuse>=4.0           # 第 14 節
+opentelemetry-proto>=1.0  # 選用：假 Langfuse server 解碼 OTLP 用
 ```
 
 ### 3.3 驗證連線
@@ -181,9 +187,10 @@ https://ollama.com/upgrade
 | `examples/07_openai_compat.py` | 第 10 節 | OpenAI SDK 相容層 |
 | `examples/mcp_server_demo.py` | 第 11 節 | 示範用的 MCP Server（工單系統） |
 | `examples/08_mcp_agent.py` | 第 11 節 | MCP ↔ Ollama 橋接 + Agent |
-| `examples/09_langchain_agent.py` | 第 13 節 | LangChain 接雲端 + Langfuse callback |
-| `examples/10_langfuse_tracing.py` | 第 13 節 | 用 `@observe` 追蹤手刻 Agent Loop |
-| `examples/tools/fake_langfuse_server.py` | 第 13 節 | 假的 Langfuse 接收端，免帳號驗證 trace |
+| `examples/11_model_router.py` | 第 12 節 | 分層路由降本，含成本量測 |
+| `examples/09_langchain_agent.py` | 第 14 節 | LangChain 接雲端 + Langfuse callback |
+| `examples/10_langfuse_tracing.py` | 第 14 節 | 用 `@observe` 追蹤手刻 Agent Loop |
+| `examples/tools/fake_langfuse_server.py` | 第 14 節 | 假的 Langfuse 接收端，免帳號驗證 trace |
 
 文章裡的程式碼片段為了自我完整會重複寫 client 設定，實際檔案則統一 `from _client import MODEL, get_client`。直接 `python examples/xx.py` 執行即可，Python 會自動把 `examples/` 加進 import 路徑。
 
@@ -1079,7 +1086,126 @@ async def call(self, qualified_name, arguments):
 
 ---
 
-## 12. 正式上線前要處理的事
+## 12. 實際使用情境：GPU 時間計費下的成本控制
+
+前面十一節都在講「怎麼做出來」。這節講「做出來之後怎麼不燒錢」——而且會顛覆幾個直覺。
+
+Ollama Cloud **按 GPU 時間計費，不是按 token**。這一句話改變了所有優化的方向，但大部分人（包括我一開始）還是帶著 token 計費的習慣在思考。
+
+### 12.1 三個實測數字，先打破直覺
+
+同一個分類任務「這句話是 bug / feature / question？」，三個免費可用的模型都答對了 `bug`。成本呢（三次的中位數）：
+
+| 模型 | GPU 時間 | 輸出 tokens | 答案 |
+| --- | --- | --- | --- |
+| `gemma4:31b` | **0.41s** | 2 | ✅ bug |
+| `gpt-oss:120b` | 1.41s | 101 | ✅ bug |
+| `gpt-oss:20b` | 1.77s | 100 | ✅ bug |
+
+三個反直覺的地方：
+
+**一、`gpt-oss:20b` 比 `gpt-oss:120b` 還貴。** 參數少了六分之五，GPU 時間反而多 25%。「小模型比較便宜」在按 token 計費時成立，在按 GPU 時間計費時**不成立**。
+
+**二、`gpt-oss` 回一個詞要燒 100 個 token。** 因為它是 thinking 模型，回答之前一定先推理。分類這種不需要思考的任務，那 100 個 token 全是浪費。
+
+**三、`think=False` 關不掉。** 我試過了：
+
+| 設定 | GPU 時間 | thinking 長度 |
+| --- | --- | --- |
+| `think=True` | 1.64s | 303 字元 |
+| `think=False` | 1.12s | **292 字元** |
+
+thinking 內容還在，只是不一定回傳給你。**選了 thinking 模型就是選了它的成本，這個開關省不掉。** 要省就得換非 thinking 模型。
+
+### 12.2 最有效的一招：叫它閉嘴
+
+這是我整輪實測中投報率最高的發現。同樣是「把『今天天氣很好』翻譯成英文」：
+
+| 設定 | GPU 時間 | 輸出 tokens | 回答 |
+| --- | --- | --- | --- |
+| `gemma4:31b` 無約束 | **3.29s** | 222 | 「這句話最常見的翻譯有以下幾種，視你想表達的口氣而定：**1. 最通用…」 |
+| `gemma4:31b` + 一句系統提示 | **0.32s** | 7 | 「The weather is great today.」 |
+
+**十倍。** 那句系統提示就是：
+
+```python
+TERSE = '直接給答案，不要解釋、不要列出多個選項、不要加註解。'
+```
+
+在 GPU 時間計費下，**囉嗦才是成本主因，模型大小是次要的**。一個會長篇大論的小模型，比一個簡潔的大模型還貴。
+
+同一招對 thinking 模型效果有限（`gpt-oss:120b` 只從 1.77s 降到 1.05s），因為省不掉的推理 token 佔了大部分——這又回到 12.1 的結論。
+
+### 12.3 分層路由：先判難度再決定用誰
+
+有了上面兩點，降本策略就清楚了：**用便宜的非 thinking 模型擋掉簡單請求，只有真的需要推理的才升級。**
+
+```python
+CHEAP = 'gemma4:31b'        # 非 thinking，回應短
+SMART = 'gpt-oss:120b'      # thinking 模型，貴但強
+
+ROUTER_PROMPT = """判斷以下請求需要哪個等級的模型處理，只回一個字：
+
+S = 簡單：分類、抽取、改寫、翻譯、格式轉換、事實查詢
+C = 複雜：多步驟推理、數學計算、程式除錯、需要權衡的決策
+
+請求：{task}
+
+只回 S 或 C，不要任何其他文字。"""
+
+
+def route_and_answer(task: str) -> dict:
+    verdict, route_cost = ask(CHEAP, ROUTER_PROMPT.format(task=task))
+    is_complex = verdict.upper().startswith('C')
+    chosen = SMART if is_complex else CHEAP
+
+    # 簡單任務才壓長度；複雜任務需要模型把推理寫出來，壓了反而會答錯
+    answer, answer_cost = ask(chosen, task, terse=not is_complex)
+    ...
+```
+
+實測結果（`examples/11_model_router.py`，每項取三次中位數）：
+
+```
+簡單任務（2 題）平均 GPU：路由 0.79s vs 全用大模型 1.97s → 省 60%
+複雜任務（1 題）平均 GPU：路由 6.92s vs 全用大模型 6.14s → 多花 13%
+
+損益平衡點：簡單請求需佔總流量 22% 以上才划算
+```
+
+**這招不是免費的。** 每個請求都多一次路由呼叫，複雜任務因此貴 13%。只有簡單請求佔比夠高才划得來——實測這個組合的損益平衡點是 22%。大部分真實產品的流量遠高於這個比例，所以通常划算，但**你該用自己的流量算一次，而不是相信任何人的百分比**。
+
+> 我第一版寫這個範例時沒加 `TERSE`，結果總計「多花 13%」——分層路由反而更貴。原因就是 12.2 那件事：便宜模型囉嗦起來一點都不便宜。這個負面結果我留在範例的註解裡，因為它比成功案例更有教育意義。
+
+### 12.4 量成本一定要取中位數
+
+雲端 GPU 時間的波動比想像中大。同一題 `gpt-oss:120b`、同樣的 prompt、`temperature=0`，連跑六次：
+
+```
+1.10s  1.21s  1.14s  3.69s  0.93s  1.07s
+```
+
+中位數 1.12s，但有一次是 3.69s——**三倍**。`gemma4:31b` 就穩得多（0.24s～0.34s）。
+
+這代表：
+
+- **單次測量會給你完全相反的結論。** 我有一輪測量剛好撞上尖峰，得出「路由多花 20%」，重測就變成「省 60%」
+- 範例程式因此把量測改成取三次中位數（`REPS = 3`）
+- 上線後如果有 SLA 要求，要看的是 **p95 而不是平均**
+
+### 12.5 其他省 GPU 時間的招式
+
+**減少輪數比壓縮 prompt 有效。** 每一輪都是一次完整的請求往返。工具設計得好、一輪能拿到足夠資訊，比省 context 有用得多——這也是第 7 節「工具粒度要抓對」的成本面理由。
+
+**`max_turns` 是帳單的保險絲。** 失控的 Agent Loop 可以在你沒注意時跑掉大量 GPU 時間。
+
+**用 token 數當 context 膨脹的儀表板。** 雖然不直接對應帳單，但第 14 節那張 trace 上 input token 從 200 → 297 → 351 一路長的曲線，是你判斷「該截斷工具輸出了」最直觀的指標。
+
+**簡單任務不要開 `think=True`。** 對能關的模型有效；對 `gpt-oss` 系列沒用（見 12.1）。
+
+---
+
+## 13. 正式上線前要處理的事
 
 前面的程式碼是為了讀起來清楚。真的要上線，這幾件事跑不掉：
 
@@ -1107,12 +1233,10 @@ def chat_with_retry(client, max_retries=3, **kwargs):
 
 ### 成本控制
 
-Ollama Cloud 依 GPU 時間計費，所以省錢的方向跟 token 計費不太一樣：
+第 12 節整節都在講這件事，這裡只補上線相關的兩點：
 
-- **減少輪數比減少 context 有效**。每一輪都是一次完整的請求往返，工具設計得好、一輪能拿到足夠資訊，比壓縮 prompt 有用得多。
-- **`max_turns` 一定要設**。失控的 Agent Loop 是帳單殺手。
-- **分層用模型**。路由、分類這種簡單判斷丟 `qwen3.5:9b` 或 `deepseek-v4-flash`，只有主要規劃用大模型。
-- **免費額度會遇到 rate limit**，正式跑要看一下 [ollama.com/pricing](https://ollama.com/pricing) 的方案配額。
+- **配額與 rate limit**。免費方案除了模型受限（見 3.4），也有速率限制。正式跑之前看一下 [ollama.com/pricing](https://ollama.com/pricing) 的方案配額，並且在程式裡把 429 當成需要退避的錯誤處理。
+- **設預算告警**。GPU 時間計費的好處是可預估，前提是你真的有在看。把第 14 節的 trace 接起來，至少能回答「這個月哪個 Agent 吃掉最多時間」。
 
 ### 可觀測性
 
@@ -1130,7 +1254,7 @@ Ollama Cloud 依 GPU 時間計費，所以省錢的方向跟 token 計費不太�
 
 ---
 
-## 13. 接框架與可觀測性：LangChain / Langfuse / LangSmith
+## 14. 接框架與可觀測性：LangChain / Langfuse / LangSmith
 
 前面十二節都是手刻的。這節談什麼時候該把工作交給框架，以及一個比框架更該優先做的事——**可觀測性**。
 
@@ -1222,7 +1346,7 @@ resilient_agent = agent.with_retry(stop_after_attempt=3)
 
 ### 13.3 Langfuse：把「可觀測性」從口號變成東西
 
-第 12 節說「至少把每輪的 `tool_calls` 和 `thinking` 記下來」。Langfuse 就是拿來做這件事的：開源、可自架、與供應商無關。
+第 13 節說「至少把每輪的 `tool_calls` 和 `thinking` 記下來」。Langfuse 就是拿來做這件事的：開源、可自架、與供應商無關。
 
 用 `@observe` 標記，三種 `as_type` 對應 trace 上三種節點：
 
@@ -1374,7 +1498,7 @@ def add(a: int, b: int) -> int:
 
 ---
 
-## 14. 結語
+## 15. 結語
 
 回頭看，整篇文章的核心其實只有第 6 節那個迴圈：
 
@@ -1395,7 +1519,7 @@ Ollama Cloud 在這條路上的貢獻，是把「模型能力」這個變數從�
 - **把 MCP 接到底**：第 11 節只接了一台自製 Server，實務上會同時掛 GitHub、檔案系統、資料庫，再加上工具篩選與人工確認關卡
 - **多 Agent 分工**：一個 planner 負責拆任務，多個 worker 平行執行，最後 synthesizer 收斂
 - **記憶層**：把跨 session 的結論存進向量庫，讓 Agent 記得上次的發現
-- **降本實驗**：把流程中的簡單步驟逐一換成小模型，量測品質掉多少
+- **降本實驗**：拿第 12 節的量測方法，對你自己的流量算一次損益平衡點，再決定路由策略
 
 ---
 
