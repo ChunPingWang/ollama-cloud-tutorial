@@ -3,7 +3,7 @@
 > **難度**：中階　|　**前置**：[正式上線前要處理的事](07-production.md)
 > 服務化要處理的五件事，以及為什麼容器裡不用裝 Ollama
 
-[← 跨 Session 長期記憶](11-persistent-memory.md)　·　[全部進階主題](README.md)　·　[回到核心路徑 →](../README.md)
+[← 跨 Session 長期記憶](11-persistent-memory.md)　·　[全部進階主題](README.md)　·　[硬體選型 →](13-hardware.md)
 
 ---
 
@@ -224,4 +224,4 @@ $ curl -X POST localhost:8080/ask -H 'Content-Type: application/json' \
 
 ---
 
-[← 跨 Session 長期記憶](11-persistent-memory.md)　·　[全部進階主題](README.md)　·　[回到核心路徑 →](../README.md)
+[← 跨 Session 長期記憶](11-persistent-memory.md)　·　[全部進階主題](README.md)　·　[硬體選型 →](13-hardware.md)

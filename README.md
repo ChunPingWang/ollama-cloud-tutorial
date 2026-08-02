@@ -107,6 +107,7 @@ check_docs.py          ← 文件一致性檢查（改文件後跑）
 | [測試 Agent](docs/10-testing.md) | 中階 |
 | [跨 Session 長期記憶](docs/11-persistent-memory.md) | 進階 |
 | [部署上線](docs/12-deployment.md) | 中階 |
+| [硬體選型](docs/13-hardware.md) | 中階 |
 
 
 ---
@@ -804,7 +805,8 @@ python examples/04_codebase_agent.py "這個專案的進入點在哪裡？主要
 | [多輪對話與 Context 管理](docs/09-memory-context.md) | 中階 | 使用者問第二句「那東京呢？」的時候 |
 | [測試 Agent](docs/10-testing.md) | 中階 |
 | [跨 Session 長期記憶](docs/11-persistent-memory.md) | 進階 |
-| [部署上線](docs/12-deployment.md) | 中階 | 想安心重構，不必每次人工點一遍 |
+| [部署上線](docs/12-deployment.md) | 中階 |
+| [硬體選型](docs/13-hardware.md) | 中階 | 想安心重構，不必每次人工點一遍 |
 
 完整索引：[docs/README.md](docs/README.md)
 

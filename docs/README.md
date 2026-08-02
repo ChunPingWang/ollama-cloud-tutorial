@@ -16,6 +16,7 @@
 | [測試 Agent](10-testing.md) | 中階 | 用假 client 把 Agent Loop 測起來，0.2 秒跑完 18 個測試 |
 | [跨 Session 長期記憶](11-persistent-memory.md) | 進階 | 把「記住」做成工具，以及記憶衝突為什麼難處理 |
 | [部署上線](12-deployment.md) | 中階 | 服務化的五件事，209MB 映像檔且不含 Ollama |
+| [硬體選型](13-hardware.md) | 中階 | 本地跑模型值得嗎、32GB vs 128GB、MoE 為什麼改變結論 |
 
 ---
 
