@@ -1,5 +1,9 @@
 """結構化輸出：在 Ollama Cloud 上真正可行的做法。
 
+【這支教你什麼】雲端不強制 format 的坑，以及兩種能用的替代方案
+【前置知識】03
+【下一支】06_streaming_agent.py：邊跑邊顯示
+
 ⚠ 重要：Ollama Cloud 的 hosted API 目前「不強制」結構化輸出。
    實測結果（2026-08，gpt-oss:120b / gemma4:31b）：
      - 原生 chat(format=<json schema>)         → 被忽略，回傳散文

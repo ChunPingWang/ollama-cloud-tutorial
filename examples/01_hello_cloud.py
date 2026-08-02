@@ -1,5 +1,9 @@
 """第一次呼叫 Ollama Cloud。
 
+【這支教你什麼】確認雲端連得上，並看到串流輸出的樣子
+【前置知識】00_check_setup.py 跑過且全綠
+【下一支】02_tool_calling.py：讓模型能對外部做事
+
 用法:
     python examples/01_hello_cloud.py
 """

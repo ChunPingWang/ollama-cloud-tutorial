@@ -1,5 +1,8 @@
 """共用的 Ollama Cloud client 設定。
 
+【這支教你什麼】連線設定唯一的真實來源，以及為什麼重試不是選配
+【不用單獨執行】其他範例 `from _client import MODEL, get_client` 取用
+
 所有範例都從這裡取得 client，避免每支程式重複一樣的樣板。
 
 這裡也內建了重試。不是為了嚴謹好看——實測跑多輪 Agent 時真的會撞到

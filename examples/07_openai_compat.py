@@ -1,5 +1,9 @@
 """用 OpenAI SDK 的相容層接 Ollama Cloud。
 
+【這支教你什麼】用 OpenAI SDK 接 Ollama Cloud，以及兩邊訊息格式的差異
+【前置知識】02
+【下一支】08_mcp_agent.py：工具不用自己寫
+
 適合已經有一套用 OpenAI SDK / LangChain 寫好的程式，不想重寫的情況。
 
 用法:

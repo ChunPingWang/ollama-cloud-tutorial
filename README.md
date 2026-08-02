@@ -5,24 +5,80 @@
 
 ---
 
+## 這篇是給誰看的
+
+假設你會寫 Python，但沒做過 AI Agent。你不需要懂機器學習，也不需要有 GPU。
+
+讀完你會有一個能自己決定用哪個工具、能連續多輪推理、能讀你自己文件的 Agent——而且每一行都是你看得懂的程式碼，不是框架的黑盒子。
+
+**文章裡的每個數字都是實測的**，包含那些「照官方文件寫會失敗」的地方。踩過的坑我都留在原地並標明，因為那些通常比成功案例更有用。
+
+---
+
+## 三條學習路徑
+
+這篇有點長。**不要從頭讀到尾**，照你的目的挑一條：
+
+### 🚀 路徑 A：三十分鐘搞懂 Agent 是什麼
+
+> 第 1 → 4 → 5 → 6 → 7 節
+
+跑完你會有一個會用工具的 Agent，並且理解它的本質只是一個 while 迴圈。**大部分人到這裡就夠用了。**
+
+```bash
+python examples/00_check_setup.py     # 先確認環境
+python examples/01_hello_cloud.py
+python examples/02_tool_calling.py
+python examples/03_agent_loop.py      # ← 全文最核心的 40 行
+```
+
+### 🛠 路徑 B：做一個真的能用的東西
+
+> 路徑 A ＋ 第 8 → 9 → 13 節
+
+加上真實 Agent 需要的防護（路徑邊界、輸出截斷、例外處理）、可用的結構化輸出，以及成本控制。
+
+### 📚 路徑 C：完整讀完
+
+> 全部十七節
+
+包含 MCP 工具生態、RAG、框架整合、可觀測性、上線準備。建議當作**參考手冊**，需要哪塊看哪塊，不用一次讀完。
+
+---
+
 ## 目錄
 
-1. [為什麼是 Ollama Cloud](#1-為什麼是-ollama-cloud)
-2. [兩種連線模式，先搞懂差別](#2-兩種連線模式先搞懂差別)
-3. [環境準備](#3-環境準備)
-4. [Hello Cloud：第一次呼叫](#4-hello-cloud第一次呼叫)
-5. [Agent 的心臟：Tool Calling](#5-agent-的心臟tool-calling)
-6. [手刻 Agent Loop](#6-手刻-agent-loop)
-7. [實戰：一個會讀專案的 Codebase Agent](#7-實戰一個會讀專案的-codebase-agent)
-8. [結構化輸出：讓 Agent 吐出可以直接用的資料](#8-結構化輸出讓-agent-吐出可以直接用的資料)
-9. [串流與 Thinking：把思考過程秀出來](#9-串流與-thinking把思考過程秀出來)
-10. [用 OpenAI SDK 相容層接既有生態系](#10-用-openai-sdk-相容層接既有生態系)
-11. [接上 MCP：不用自己寫工具](#11-接上-mcp不用自己寫工具)
-12. [實際使用情境：GPU 時間計費下的成本控制](#12-實際使用情境gpu-時間計費下的成本控制)
-13. [RAG：為什麼雲端做不了，以及兩條可走的路](#13-rag為什麼雲端做不了以及兩條可走的路)
-14. [正式上線前要處理的事](#14-正式上線前要處理的事)
-15. [接框架與可觀測性：LangChain / Langfuse / LangSmith](#15-接框架與可觀測性langchain--langfuse--langsmith)
-16. [結語](#16-結語)
+**基礎——先讀這些**
+
+| 節 | 標題 | 難度 |
+| --- | --- | --- |
+| 1 | [為什麼是 Ollama Cloud](#1-為什麼是-ollama-cloud) | 入門 |
+| 2 | [兩種連線模式，先搞懂差別](#2-兩種連線模式先搞懂差別) | 入門 |
+| 3 | [技術棧與工具鏈全景](#3-技術棧與工具鏈全景) | 入門 |
+| 4 | [環境準備](#4-環境準備) | 入門 |
+
+**核心——Agent 的本質**
+
+| 節 | 標題 | 難度 |
+| --- | --- | --- |
+| 5 | [Hello Cloud：第一次呼叫](#5-hello-cloud第一次呼叫) | 入門 |
+| 6 | [Agent 的心臟：Tool Calling](#6-agent-的心臟tool-calling) | 入門 |
+| 7 | [手刻 Agent Loop](#7-手刻-agent-loop) | ⭐ **最重要的一節** |
+| 8 | [實戰：一個會讀專案的 Codebase Agent](#8-實戰一個會讀專案的-codebase-agent) | 中階 |
+
+**進階——讓它能真的上線**
+
+| 節 | 標題 | 難度 |
+| --- | --- | --- |
+| 9 | [結構化輸出：讓 Agent 吐出可以直接用的資料](#9-結構化輸出讓-agent-吐出可以直接用的資料) | 中階 |
+| 10 | [串流與 Thinking：把思考過程秀出來](#10-串流與-thinking把思考過程秀出來) | 中階 |
+| 11 | [用 OpenAI SDK 相容層接既有生態系](#11-用-openai-sdk-相容層接既有生態系) | 中階 |
+| 12 | [接上 MCP：不用自己寫工具](#12-接上-mcp不用自己寫工具) | 進階 |
+| 13 | [實際使用情境：GPU 時間計費下的成本控制](#13-實際使用情境gpu-時間計費下的成本控制) | 中階 |
+| 14 | [RAG：為什麼雲端做不了，以及兩條可走的路](#14-rag為什麼雲端做不了以及兩條可走的路) | 進階 |
+| 15 | [正式上線前要處理的事](#15-正式上線前要處理的事) | 中階 |
+| 16 | [接框架與可觀測性：LangChain / Langfuse / LangSmith](#16-接框架與可觀測性langchain--langfuse--langsmith) | 進階 |
+| 17 | [結語](#17-結語) | — |
 
 ---
 
@@ -88,9 +144,129 @@ resp = client.chat(model='gpt-oss:120b', messages=[...])   # 注意：沒有 -cl
 
 ---
 
-## 3. 環境準備
+## 3. 技術棧與工具鏈全景
 
-### 3.1 拿 API Key
+在裝任何東西之前，先看清楚整張圖。這節不寫程式碼，是給你一個「哪個零件負責什麼、什麼時候才需要它」的地圖——後面每一節都會回到這張圖上的某一格。
+
+### 3.1 一張圖看完
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  你的 Agent 程式（Python）                                    │
+│                                                              │
+│   while True:  呼叫模型 → 有工具就執行 → 結果餵回 → 重複        │  ← 第 7 節
+└───┬──────────────┬──────────────┬──────────────┬────────────┘
+    │              │              │              │
+    │ 推論          │ 工具          │ 知識          │ 觀測
+    ↓              ↓              ↓              ↓
+┌─────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
+│ 模型層   │  │ 工具層     │  │ 檢索層     │  │ 可觀測層   │
+├─────────┤  ├───────────┤  ├───────────┤  ├───────────┤
+│ Ollama  │  │ 自己寫的   │  │ 切塊       │  │ Langfuse  │
+│  Cloud  │  │  函式      │  │ BM25      │  │ LangSmith │
+│         │  │           │  │ embedding │  │           │
+│ 本地     │  │ MCP       │  │ 向量比對   │  │ 結構化 log │
+│  Ollama │  │  Server   │  │ 重排       │  │           │
+└─────────┘  └───────────┘  └───────────┘  └───────────┘
+  第 2 節       第 6/12 節      第 14 節        第 16 節
+```
+
+四層裡面，**只有模型層和工具層是必要的**。檢索層要等你需要讓 Agent 讀你自己的文件才用得到，可觀測層要等你上線才會痛。初學者照這個順序點技能樹就好。
+
+### 3.2 逐層說明：每個零件解決什麼問題
+
+#### 模型層
+
+| 零件 | 解決什麼 | 什麼時候需要 |
+| --- | --- | --- |
+| **Ollama Cloud** | 跑得動 120B 級模型，不用買 GPU | 一開始就需要 |
+| **本地 Ollama** | 離線、資料不出境、embedding、微調 | 做 RAG 或有合規要求時 |
+| `ollama` Python SDK | 官方 client，函式自動轉 schema | 一開始就需要 |
+| `openai` SDK | 接既有以 OpenAI 為介面的程式 | 只有要沿用舊程式時 |
+
+#### 工具層——Agent 的手腳
+
+| 零件 | 解決什麼 | 什麼時候需要 |
+| --- | --- | --- |
+| **自己寫的 Python 函式** | 最直接。SDK 會自動從型別標註與 docstring 生 schema | 一開始就需要 |
+| **MCP Server** | 不用自己寫。GitHub、檔案系統、資料庫都有現成的 | 需要接外部系統時 |
+| `mcp` SDK | MCP 的 client/server 實作 | 同上 |
+
+#### 檢索層——讓 Agent 讀你的文件（RAG）
+
+這層零件最多，也最容易被賣過頭。**照下表由上而下加，能停就停**：
+
+| 零件 | 解決什麼 | 我的建議 |
+| --- | --- | --- |
+| **切塊（chunking）** | 文件太長塞不進 context | **必要**。依 Markdown 標題切，別用固定字元數 |
+| **BM25 關鍵字檢索** | 找出該讀哪一段 | **先試這個**。手寫六十行，零依賴，實測 Recall@1 85% |
+| **Embedding 模型** | 讓「意思相近」也找得到，不只是「字一樣」 | 使用者會用自己的話問時才需要。**雲端沒有，要跑本地** |
+| **向量資料庫** | 語料大到用 Python list 掃不動 | 幾千段以內不需要。先用 list |
+| **重排模型（reranker）** | 檢索出十段，挑出最相關的三段 | 檢索夠準就不用。這是最後才加的 |
+| **評估資料集** | 回答「我的 RAG 到底準不準」 | **比向量資料庫更該先做**。見第 14.9 節 |
+
+> 這張表的順序是有意的。很多 RAG 教學一開始就叫你裝向量資料庫，但**評估**才是你最早該做的事——沒有評估，你連換了 embedding 模型有沒有變好都不知道。
+
+#### 可觀測層——Agent 出錯時你要能回答「它為什麼這樣做」
+
+| 零件 | 解決什麼 | 什麼時候需要 |
+| --- | --- | --- |
+| **結構化 log** | 把 `thinking` 與 `tool_calls` 記下來 | **最低限度，一開始就該做** |
+| **Langfuse** | 樹狀 trace、token 用量、成本歸因。開源可自架 | 開始有多輪 Agent 就值得 |
+| **LangSmith** | 同上，但閉源 SaaS、繞著 LangChain 設計 | 整套都在 LangChain 上時 |
+
+#### 框架層（選用）
+
+| 零件 | 解決什麼 | 我的建議 |
+| --- | --- | --- |
+| **LangChain / LangGraph** | checkpoint、中斷續跑、人在迴圈中 | **先手刻過一次再用**。不然框架對你是黑盒子 |
+
+### 3.3 三種常見組合
+
+**組合一：最小可用 Agent**（第 5–8 節）
+
+```
+ollama SDK  +  自己寫的函式  +  print 除錯
+```
+
+兩個套件，一個檔案。**大部分「幫我自動化某件事」的需求到這裡就夠了。**
+
+**組合二：能讀公司文件的問答 Agent**（第 14 節）
+
+```
+ollama SDK  +  切塊 + BM25  +  檢索當作工具
+             （語料大或使用者用口語提問時，再加本地 embedding）
+```
+
+注意這裡**沒有向量資料庫**。六個段落用 Python list 掃就好，加了只是徒增部署複雜度。
+
+**組合三：上線形態**（第 15–16 節）
+
+```
+組合一或二  +  重試機制  +  Langfuse trace  +  max_turns 上限
+            +  評估資料集（改動前後跑一次，確認沒退步）
+```
+
+### 3.4 這個 repo 用到的完整清單
+
+| 套件 | 版本 | 用在哪 | 必要性 |
+| --- | --- | --- | --- |
+| `ollama` | ≥0.6 | 全部 | 必要 |
+| `python-dotenv` | ≥1.0 | 全部 | 必要 |
+| `pydantic` | ≥2.0 | 第 9 節 結構化輸出 | 必要 |
+| `openai` | ≥1.0 | 第 11 節 相容層 | 選用 |
+| `mcp` | ≥2.0 | 第 12 節 MCP | 選用 |
+| `langchain`, `langchain-ollama` | ≥1.0 | 第 16 節 | 選用 |
+| `langfuse` | ≥4.0 | 第 16 節 | 選用 |
+| `opentelemetry-proto` | ≥1.0 | 假 Langfuse server 解碼 | 選用 |
+
+**檢索層一個套件都不用裝。** BM25、切塊、餘弦相似度全部是手寫的純 Python，加起來不到一百二十行（`examples/rag_common.py`）。這是刻意的——我想讓你看清楚裡面在做什麼，而不是 `pip install` 一個黑盒子。
+
+---
+
+## 4. 環境準備
+
+### 4.1 拿 API Key
 
 1. 到 [ollama.com](https://ollama.com) 註冊 / 登入
 2. 進 [ollama.com/settings/keys](https://ollama.com/settings/keys) 建立一把 API key
@@ -102,7 +278,7 @@ export OLLAMA_API_KEY="your_api_key_here"
 
 建議寫進 `.env`，並確認 `.env` 有進 `.gitignore`。這篇的範例會用 `python-dotenv` 讀取。
 
-### 3.2 安裝套件
+### 4.2 安裝套件
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -116,23 +292,43 @@ ollama>=0.6
 pydantic>=2.0
 python-dotenv>=1.0
 
-openai>=1.0             # 第 10 節：OpenAI 相容層
-mcp>=2.0                # 第 11 節：MCP 整合
-langchain>=1.0          # 第 15 節
-langchain-ollama>=1.0   # 第 15 節
-langfuse>=4.0           # 第 15 節
+openai>=1.0             # 第 11 節：OpenAI 相容層
+mcp>=2.0                # 第 12 節：MCP 整合
+langchain>=1.0          # 第 16 節
+langchain-ollama>=1.0   # 第 16 節
+langfuse>=4.0           # 第 16 節
 opentelemetry-proto>=1.0  # 選用：假 Langfuse server 解碼 OTLP 用
 ```
 
-### 3.3 驗證連線
+### 4.3 驗證連線
+
+```bash
+python examples/00_check_setup.py
+```
+
+這支會一次檢查五件事，並且在失敗時直接給你可以照做的修復指令：
+
+```
+1. API Key        ✅ 讀到了（長度 57，開頭 a58f…）
+2. 連線與可用模型   ✅ 連得上，帳號可見 18 個模型
+     ✅ gpt-oss:120b    可用
+     ✅ gpt-oss:20b     可用
+     ✅ gemma4:31b      可用
+     —  qwen3.5:397b   需要訂閱
+3. 套件           ✅ ollama / pydantic / dotenv …
+4. 本地 Ollama     ✅ embedding 可用：embeddinggemma（768 維）
+結果  環境就緒，可以從 examples/01_hello_cloud.py 開始。
+```
+
+**注意第 2 項會實際去打每個模型**（只要一個 token，GPU 時間可忽略），因為「列在清單上」不等於「你的方案能用」——這是最多人卡住的地方。
+
+只想確認連線的話，一行 curl 也可以：
 
 ```bash
 curl https://ollama.com/api/tags -H "Authorization: Bearer $OLLAMA_API_KEY"
 ```
 
-看到一坨模型 JSON 就代表通了。
-
-### 3.4 選模型
+### 4.4 選模型
 
 Agent 對模型只有兩個硬需求：**支援 tools**、**推理夠穩**。
 
@@ -174,33 +370,40 @@ https://ollama.com/upgrade
 
 本文統一用 `gpt-oss:120b`（全部範例都是用它實跑驗證的）。想換就改 `MODEL` 常數（或設 `OLLAMA_MODEL` 環境變數），其他程式一行都不用動。
 
-### 3.5 範例檔案一覽
+### 4.5 範例檔案一覽
 
 | 檔案 | 對應章節 | 內容 |
 | --- | --- | --- |
-| `examples/_client.py` | — | 共用的 client 設定，其他範例都從這裡取 |
-| `examples/01_hello_cloud.py` | 第 4 節 | 第一次呼叫（串流） |
-| `examples/02_tool_calling.py` | 第 5 節 | 最小 tool calling |
-| `examples/03_agent_loop.py` | 第 6 節 | Agent Loop 骨架 |
-| `examples/04_codebase_agent.py` | 第 7 節 | 完整的 Codebase Agent |
-| `examples/05_structured_output.py` | 第 8 節 | 結構化輸出（兩階段模式） |
-| `examples/06_streaming_agent.py` | 第 9 節 | 串流版 Agent Loop |
-| `examples/07_openai_compat.py` | 第 10 節 | OpenAI SDK 相容層 |
-| `examples/mcp_server_demo.py` | 第 11 節 | 示範用的 MCP Server（工單系統） |
-| `examples/08_mcp_agent.py` | 第 11 節 | MCP ↔ Ollama 橋接 + Agent |
-| `examples/11_model_router.py` | 第 12 節 | 分層路由降本，含成本量測 |
-| `examples/corpus/handbook.md` | 第 13 節 | RAG 範例用的示範語料 |
-| `examples/12_rag_cloud_only.py` | 第 13 節 | 純雲端 agentic RAG（BM25，零 embedding） |
-| `examples/13_rag_hybrid.py` | 第 13 節 | 混合式：本地 embedding + 雲端生成 |
-| `examples/09_langchain_agent.py` | 第 15 節 | LangChain 接雲端 + Langfuse callback |
-| `examples/10_langfuse_tracing.py` | 第 15 節 | 用 `@observe` 追蹤手刻 Agent Loop |
-| `examples/tools/fake_langfuse_server.py` | 第 15 節 | 假的 Langfuse 接收端，免帳號驗證 trace |
+| `examples/00_check_setup.py` | 第 4 節 | **先跑這支**：環境自檢，失敗時給你修復指令 |
+| `examples/_client.py` | — | 共用 client（內建重試），其他範例都從這裡取 |
+| `examples/01_hello_cloud.py` | 第 5 節 | 第一次呼叫（串流） |
+| `examples/02_tool_calling.py` | 第 6 節 | 最小 tool calling |
+| `examples/03_agent_loop.py` | 第 7 節 | ⭐ Agent Loop 骨架，全文最核心 |
+| `examples/04_codebase_agent.py` | 第 8 節 | 完整的 Codebase Agent |
+| `examples/05_structured_output.py` | 第 9 節 | 結構化輸出（兩種可行方案） |
+| `examples/06_streaming_agent.py` | 第 10 節 | 串流版 Agent Loop |
+| `examples/07_openai_compat.py` | 第 11 節 | OpenAI SDK 相容層 |
+| `examples/mcp_server_demo.py` | 第 12 節 | 示範用的 MCP Server（工單系統） |
+| `examples/08_mcp_agent.py` | 第 12 節 | MCP ↔ Ollama 橋接 + Agent |
+| `examples/11_model_router.py` | 第 13 節 | 分層路由降本，含成本量測 |
+| `examples/rag_common.py` | 第 14 節 | 切塊與 BM25（純手寫，零依賴） |
+| `examples/corpus/handbook.md` | 第 14 節 | RAG 範例用的示範語料 |
+| `examples/12_rag_cloud_only.py` | 第 14 節 | 純雲端 agentic RAG（零 embedding） |
+| `examples/13_rag_hybrid.py` | 第 14 節 | 混合式：本地 embedding + 雲端生成 |
+| `examples/corpus/eval_set.json` | 第 14 節 | RAG 評估標註集（15 題） |
+| `examples/14_rag_eval.py` | 第 14 節 | RAG 自動化評估（兩層指標） |
+| `examples/09_langchain_agent.py` | 第 16 節 | LangChain 接雲端 + Langfuse callback |
+| `examples/10_langfuse_tracing.py` | 第 16 節 | 用 `@observe` 追蹤手刻 Agent Loop |
+| `examples/tools/fake_langfuse_server.py` | 第 16 節 | 假的 Langfuse 接收端，免帳號驗證 trace |
 
-文章裡的程式碼片段為了自我完整會重複寫 client 設定，實際檔案則統一 `from _client import MODEL, get_client`。直接 `python examples/xx.py` 執行即可，Python 會自動把 `examples/` 加進 import 路徑。
+> 檔名的數字是**閱讀順序**，不是章節編號——`11_model_router.py` 對應第 13 節。
+> 照數字順序跑就對了。
+
+文章裡的程式碼片段為了自我完整會重複寫 client 設定，實際檔案則統一 `from _client import MODEL, get_client`。直接 `python examples/03_agent_loop.py` 這樣執行即可，Python 會自動把 `examples/` 加進 import 路徑。
 
 ---
 
-## 4. Hello Cloud：第一次呼叫
+## 5. Hello Cloud：第一次呼叫
 
 `examples/01_hello_cloud.py`：
 
@@ -231,7 +434,7 @@ python examples/01_hello_cloud.py
 
 ---
 
-## 5. Agent 的心臟：Tool Calling
+## 6. Agent 的心臟：Tool Calling
 
 Agent 跟一般聊天機器人的差別只有一句話：**Agent 能對外部世界做事**。而「做事」的介面就是 tool calling。
 
@@ -297,7 +500,7 @@ docstring 不是寫給人看的，**它就是模型看到的工具說明書**。
 
 ---
 
-## 6. 手刻 Agent Loop
+## 7. 手刻 Agent Loop
 
 上一節是寫死的兩輪。真正的 Agent 要能自己決定「還要不要再做一步」，所以核心是一個迴圈：
 
@@ -387,7 +590,7 @@ while True:
 
 ---
 
-## 7. 實戰：一個會讀專案的 Codebase Agent
+## 8. 實戰：一個會讀專案的 Codebase Agent
 
 現在做一個真的有用的東西：**丟給它一個問題，它自己去翻專案目錄、讀檔、搜尋，然後回答你**。
 
@@ -395,7 +598,7 @@ while True:
 
 完整程式在 `examples/04_codebase_agent.py`，這裡看關鍵片段。
 
-### 7.1 工具定義（含安全邊界）
+### 8.1 工具定義（含安全邊界）
 
 ```python
 ROOT = Path(os.environ.get('AGENT_ROOT', '.')).resolve()
@@ -481,7 +684,7 @@ def search_code(pattern: str, relative_path: str = '.') -> str:
 - **輸出一定要截斷**。沒有上限的話，Agent 讀到一個 5MB 的 log 就會把 context 撐爆。
 - **`_safe_path` 是必要的**，不是加分項。模型帶 `../../etc/passwd` 進來不是理論風險，是實際會發生的事。
 
-### 7.2 Agent 主體
+### 8.2 Agent 主體
 
 ```python
 SYSTEM_PROMPT = """你是一個程式碼庫分析助手。
@@ -543,7 +746,7 @@ python examples/04_codebase_agent.py "這個專案的進入點在哪裡？主要
 
 你會看到它自己 `list_files` → 挑幾個可疑檔案 `read_file` → 發現線索後 `search_code` → 最後給出帶行號的回答。**整個規劃過程沒有一行是你寫死的**，是模型自己排的。
 
-### 7.3 這裡面藏著的幾個工程重點
+### 8.3 這裡面藏著的幾個工程重點
 
 **系統提示要寫「停止條件」。** `蒐集到足夠資訊後，直接給出結論` 這句很關鍵。沒有它，模型常常會過度探索，一路讀到 max_turns 才停。
 
@@ -553,11 +756,11 @@ python examples/04_codebase_agent.py "這個專案的進入點在哪裡？主要
 
 ---
 
-## 8. 結構化輸出：讓 Agent 吐出可以直接用的資料
+## 9. 結構化輸出：讓 Agent 吐出可以直接用的資料
 
 Agent 常常是更大流程裡的一環，下游需要的是 JSON 不是散文。
 
-### 8.1 先講一個雲端的坑：`format` 不會生效
+### 9.1 先講一個雲端的坑：`format` 不會生效
 
 網路上（含 Ollama 官方文件）教的做法是這個：
 
@@ -587,7 +790,7 @@ pydantic_core._pydantic_core.ValidationError: 1 validation error for ReviewRepor
 
 好消息是有兩條路可以走，而且都驗證過能用。
 
-### 8.2 方案 A：借 tool calling 來做 schema 約束（推薦）
+### 9.2 方案 A：借 tool calling 來做 schema 約束（推薦）
 
 關鍵觀察：**`format` 在雲端失效，但 `tools` 是確實生效的。** 那就把想要的 schema 包成一個工具，讓模型「呼叫」它——工具參數天生就是 JSON Schema 約束的產物。
 
@@ -648,7 +851,7 @@ for f in report.findings:
 severity: Literal['high', 'medium', 'low']   # 模型填 'critical' 會被擋下來要求重填
 ```
 
-### 8.3 方案 B：prompt + 去圍籬 + 驗證（備援）
+### 9.3 方案 B：prompt + 去圍籬 + 驗證（備援）
 
 比較土砲，但少一層工具的間接性，模型比較不會分心：
 
@@ -671,18 +874,18 @@ report = ReviewReport.model_validate_json(_strip_fence(response.message.content)
 
 兩個方案的完整版（含重試）都在 `examples/05_structured_output.py`，執行後會兩種都跑一遍給你比較。
 
-### 8.4 跟 Agent Loop 怎麼搭
+### 9.4 跟 Agent Loop 怎麼搭
 
 **不要在 Agent Loop 裡同時掛工具跟 `submit`**，模型會搞不清楚該繼續查資料還是該交卷。分兩階段：
 
-1. **蒐集階段**：Agent Loop 帶著真正的工具跑（第 7 節那套），直到模型不再要求工具
+1. **蒐集階段**：Agent Loop 帶著真正的工具跑（第 8 節那套），直到模型不再要求工具
 2. **收斂階段**：把蒐集到的結論當成 prompt，單獨呼叫一次 `structured_via_tool()` 交出 JSON
 
 多花一次呼叫，換來下游拿得到乾淨的資料，划算。
 
 ---
 
-## 9. 串流與 Thinking：把思考過程秀出來
+## 10. 串流與 Thinking：把思考過程秀出來
 
 Agent 任務動輒跑十幾秒，介面上一片空白使用者會以為當機。串流可以邊做邊顯示。
 
@@ -733,7 +936,7 @@ while True:
 
 ---
 
-## 10. 用 OpenAI SDK 相容層接既有生態系
+## 11. 用 OpenAI SDK 相容層接既有生態系
 
 如果你手上已經有一套用 OpenAI SDK、LangChain、LlamaIndex 寫好的東西，不用重寫——Ollama 有 OpenAI 相容端點。
 
@@ -771,13 +974,13 @@ completion = client.chat.completions.create(
 
 ---
 
-## 11. 接上 MCP：不用自己寫工具
+## 12. 接上 MCP：不用自己寫工具
 
-第 7 節那三個工具是我們自己刻的。但如果 Agent 要能查 GitHub、讀 Slack、打資料庫、操作瀏覽器呢？一個一個手寫，寫到天荒地老。
+第 8 節那三個工具是我們自己刻的。但如果 Agent 要能查 GitHub、讀 Slack、打資料庫、操作瀏覽器呢？一個一個手寫，寫到天荒地老。
 
 **MCP（Model Context Protocol）解決的就是這件事**：它把「工具」標準化成一個協定，任何人寫的 MCP Server 都能被任何 MCP Client 使用。現在 GitHub、Notion、Playwright、PostgreSQL、檔案系統……都有現成的 Server。接上去，你的 Agent 立刻多幾十個工具。
 
-### 11.1 先講清楚：Ollama 沒有內建 MCP
+### 12.1 先講清楚：Ollama 沒有內建 MCP
 
 這點要先說，因為很多文章講得很含糊。**截至目前，Ollama 本身不支援 MCP**（官方 repo 的 [issue #7865](https://github.com/ollama/ollama/issues/7865) 還開著）。你不能像設定 Claude Desktop 那樣丟一個 `mcp.json` 給 Ollama 就完事。
 
@@ -805,9 +1008,9 @@ completion = client.chat.completions.create(
              (自己寫的)      (官方 Server)   (官方 Server)
 ```
 
-### 11.2 準備一台 MCP Server
+### 12.2 準備一台 MCP Server
 
-為了讓範例能獨立跑，先自己寫一台。用 MCP Python SDK 寫 Server 跟寫普通函式差不多——`@mcp.tool()` 會從型別標註和 docstring 自動生出 schema，跟第 5 節 Ollama SDK 的做法是同一個思路。
+為了讓範例能獨立跑，先自己寫一台。用 MCP Python SDK 寫 Server 跟寫普通函式差不多——`@mcp.tool()` 會從型別標註和 docstring 自動生出 schema，跟第 6 節 Ollama SDK 的做法是同一個思路。
 
 `examples/mcp_server_demo.py`（節錄）：
 
@@ -858,7 +1061,7 @@ if __name__ == '__main__':
 
 注意 `get_ticket` 裡那個 `raise ValueError`。**MCP 的錯誤處理很聰明：Server 端丟例外不會讓 Client 也炸掉**，而是變成一個 `is_error=True` 的正常回應。這正是我們要的——模型讀得到錯誤訊息，就能自己修正參數重試。
 
-### 11.3 橋接層
+### 12.3 橋接層
 
 核心就這個類別（完整版在 `examples/08_mcp_agent.py`）：
 
@@ -932,9 +1135,9 @@ class MCPToolBridge:
 - **工具名稱加前綴**（`tickets__get_ticket`）：接兩台以上 Server 時，同名工具幾乎一定會撞——`search`、`list`、`get` 這種名字太常見了。前綴是必須的，不是潔癖。
 - **`content` 是 block 陣列**：MCP 的回傳可能是文字、圖片、embedded resource。這裡只處理文字，其他型別回一個佔位訊息，至少模型知道「有東西但我看不到」，而不是靜默吃掉。
 
-### 11.4 Agent 主體
+### 12.4 Agent 主體
 
-因為 MCP SDK 是 async 的，Agent Loop 也要換成 `AsyncClient`。除此之外，結構跟第 7 節一模一樣：
+因為 MCP SDK 是 async 的，Agent Loop 也要換成 `AsyncClient`。除此之外，結構跟第 8 節一模一樣：
 
 ```python
 from ollama import AsyncClient
@@ -1013,7 +1216,7 @@ python examples/08_mcp_agent.py "有哪些還沒關掉的工單？最急的那�
 
 **注意這裡沒有任何一行是我們寫的工具邏輯。** Agent 的工具全部來自 MCP Server，而那台 Server 可以是別人寫的、跑在別台機器上的。
 
-### 11.5 接現成的 MCP Server
+### 12.5 接現成的 MCP Server
 
 自己寫的能接，別人的當然也能。`connect()` 的第二個參數換掉就好。
 
@@ -1056,7 +1259,7 @@ async with httpx2.AsyncClient(
     await bridge.connect('notion', transport)
 ```
 
-### 11.6 接 MCP 之後才會遇到的坑
+### 12.6 接 MCP 之後才會遇到的坑
 
 **工具數量會爆炸，而且要花錢。** 一台 GitHub Server 可能就給你 30 個工具，接三台就快 100 個。這些工具的完整 schema **每一輪**都要送給模型，是實打實的 context 成本，而且太多選項會讓模型挑錯工具。實務做法是**篩選**——只註冊這個 Agent 真正需要的：
 
@@ -1090,13 +1293,13 @@ async def call(self, qualified_name, arguments):
 
 ---
 
-## 12. 實際使用情境：GPU 時間計費下的成本控制
+## 13. 實際使用情境：GPU 時間計費下的成本控制
 
 前面十一節都在講「怎麼做出來」。這節講「做出來之後怎麼不燒錢」——而且會顛覆幾個直覺。
 
 Ollama Cloud **按 GPU 時間計費，不是按 token**。這一句話改變了所有優化的方向，但大部分人（包括我一開始）還是帶著 token 計費的習慣在思考。
 
-### 12.1 三個實測數字，先打破直覺
+### 13.1 三個實測數字，先打破直覺
 
 同一個分類任務「這句話是 bug / feature / question？」，三個免費可用的模型都答對了 `bug`。成本呢（三次的中位數）：
 
@@ -1121,7 +1324,7 @@ Ollama Cloud **按 GPU 時間計費，不是按 token**。這一句話改變了�
 
 thinking 內容還在，只是不一定回傳給你。**選了 thinking 模型就是選了它的成本，這個開關省不掉。** 要省就得換非 thinking 模型。
 
-### 12.2 最有效的一招：叫它閉嘴
+### 13.2 最有效的一招：叫它閉嘴
 
 這是我整輪實測中投報率最高的發現。同樣是「把『今天天氣很好』翻譯成英文」：
 
@@ -1140,7 +1343,7 @@ TERSE = '直接給答案，不要解釋、不要列出多個選項、不要加�
 
 同一招對 thinking 模型效果有限（`gpt-oss:120b` 只從 1.77s 降到 1.05s），因為省不掉的推理 token 佔了大部分——這又回到 12.1 的結論。
 
-### 12.3 分層路由：先判難度再決定用誰
+### 13.3 分層路由：先判難度再決定用誰
 
 有了上面兩點，降本策略就清楚了：**用便宜的非 thinking 模型擋掉簡單請求，只有真的需要推理的才升級。**
 
@@ -1181,7 +1384,7 @@ def route_and_answer(task: str) -> dict:
 
 > 我第一版寫這個範例時沒加 `TERSE`，結果總計「多花 13%」——分層路由反而更貴。原因就是 12.2 那件事：便宜模型囉嗦起來一點都不便宜。這個負面結果我留在範例的註解裡，因為它比成功案例更有教育意義。
 
-### 12.4 量成本一定要取中位數
+### 13.4 量成本一定要取中位數
 
 雲端 GPU 時間的波動比想像中大。同一題 `gpt-oss:120b`、同樣的 prompt、`temperature=0`，連跑六次：
 
@@ -1197,21 +1400,21 @@ def route_and_answer(task: str) -> dict:
 - 範例程式因此把量測改成取三次中位數（`REPS = 3`）
 - 上線後如果有 SLA 要求，要看的是 **p95 而不是平均**
 
-### 12.5 其他省 GPU 時間的招式
+### 13.5 其他省 GPU 時間的招式
 
-**減少輪數比壓縮 prompt 有效。** 每一輪都是一次完整的請求往返。工具設計得好、一輪能拿到足夠資訊，比省 context 有用得多——這也是第 7 節「工具粒度要抓對」的成本面理由。
+**減少輪數比壓縮 prompt 有效。** 每一輪都是一次完整的請求往返。工具設計得好、一輪能拿到足夠資訊，比省 context 有用得多——這也是第 8 節「工具粒度要抓對」的成本面理由。
 
 **`max_turns` 是帳單的保險絲。** 失控的 Agent Loop 可以在你沒注意時跑掉大量 GPU 時間。
 
-**用 token 數當 context 膨脹的儀表板。** 雖然不直接對應帳單，但第 15 節那張 trace 上 input token 從 200 → 297 → 351 一路長的曲線，是你判斷「該截斷工具輸出了」最直觀的指標。
+**用 token 數當 context 膨脹的儀表板。** 雖然不直接對應帳單，但第 16 節那張 trace 上 input token 從 200 → 297 → 351 一路長的曲線，是你判斷「該截斷工具輸出了」最直觀的指標。
 
-**簡單任務不要開 `think=True`。** 對能關的模型有效；對 `gpt-oss` 系列沒用（見 12.1）。
+**簡單任務不要開 `think=True`。** 對能關的模型有效；對 `gpt-oss` 系列沒用（見 13.1）。
 
 ---
 
-## 13. RAG：為什麼雲端做不了，以及兩條可走的路
+## 14. RAG：為什麼雲端做不了，以及兩條可走的路
 
-### 13.1 先講結論：缺的是 embedding，不是 RAG
+### 14.1 先講結論：缺的是 embedding，不是 RAG
 
 網路上「Ollama Cloud + RAG」的教學不少，但幾乎都是拿本地 Ollama 的做法直接改個 host 就貼上來，沒人實際打過那個端點。我打了，結果是：
 
@@ -1225,7 +1428,66 @@ RAG 有三個環節，它只缺一個：
 | ② 檢索（相似度／關鍵字比對） | 你的程式 | ✅ 不受影響 |
 | ③ 生成（把檢索結果餵給模型） | 模型 | ✅ 這是它的本業 |
 
-### 13.2 實測證據
+### 14.2 先搞懂 embedding 在 RAG 裡做什麼
+
+如果你還不確定 embedding 是什麼，這節缺的那一塊會很抽象。先花三分鐘。
+
+**核心問題：電腦不懂「意思」。**
+
+RAG 要解決的是：使用者問一句話，怎麼從一萬份文件裡找出該讀哪一段。最直覺的做法是關鍵字比對，但它比對的是**字**，不是**意思**：
+
+```
+使用者問：「同事寫的東西太大包看不完」
+文件寫的：「PR 超過四百行就該拆」
+```
+
+兩句講同一件事，**字面重疊是零**。BM25 只會茫然。
+
+**Embedding 做的事：把「意思」變成座標。**
+
+它把一段文字壓成固定長度的數字陣列（`embeddinggemma` 是 768 個浮點數）：
+
+```
+"PR 超過四百行就該拆"       → [ 0.021, -0.334,  0.118, … ]
+"同事寫的東西太大包看不完"   → [ 0.019, -0.341,  0.122, … ]   ← 座標很接近
+"資料庫遷移要可回滾"         → [-0.412,  0.088, -0.290, … ]   ← 離很遠
+```
+
+關鍵在於這個空間是**依語意排列**的：意思相近的句子座標就相近。於是「找相關段落」這個模糊問題，變成「算哪個向量離查詢向量最近」這個純數學問題：
+
+```python
+def cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    na = sum(x * x for x in a) ** 0.5
+    nb = sum(y * y for y in b) ** 0.5
+    return dot / (na * nb) if na and nb else 0.0
+```
+
+**它在管線中出現兩次，很多人只想到一次：**
+
+```
+【建索引時，跑一次】
+  文件 → 切塊 ─────┐
+                   ├──→ ┌───────────┐ ──→ 向量存起來
+【查詢時，每次都跑】 │     │ EMBEDDING │
+  使用者問題 ───────┘     └───────────┘ ──→ 查詢向量
+                                              ↓
+                                     算相似度、排序（純數學，不用模型）
+                                              ↓
+                                   取前 k 段 → 塞進 prompt → 生成模型回答
+```
+
+**這就是「雲端缺 embedding」為什麼致命**：不是只有建索引要用，**每次查詢都要跑一次**。而且查詢向量必須用同一個模型產生，否則座標系不同，算出來的距離毫無意義。
+
+所以在 Ollama Cloud 上：
+
+- ❌ 無法把文件轉成向量 → **建不了索引**
+- ❌ 無法把問題轉成向量 → **即使索引是別處建的也查不了**
+- ✅ 生成那一半完全正常
+
+一句話：**Ollama Cloud 能讀你找到的東西，但沒辦法幫你找。**
+
+### 14.3 實測證據
 
 ```
 POST https://ollama.com/api/embed        → 401 {"error": "unauthorized"}
@@ -1237,7 +1499,7 @@ POST https://ollama.com/v1/embeddings    → 404 {"error": "path \"/v1/embedding
 
 另外兩個端點連路由都沒有。至於模型清單，`/api/tags` 的 18 個我逐一比對過，`nomic-embed-text`、`mxbai-embed-large`、`embeddinggemma`、`bge-m3`、`all-minilm`、`qwen3-embedding` **全部不在**，一個 embedding 模型都沒有。
 
-### 13.3 為什麼會這樣設計
+### 14.4 為什麼會這樣設計
 
 這其實完全符合它的商業模型。Ollama Cloud **按 GPU 時間計費**，賣點是「跑你本機跑不動的大模型」。而 embedding 模型的特性正好相反：
 
@@ -1247,7 +1509,7 @@ POST https://ollama.com/v1/embeddings    → 404 {"error": "path \"/v1/embedding
 
 embedding 是**最不需要雲端 GPU 的那類工作**。放進按 GPU 時間計費的服務，對雙方都不划算。理解這點之後，「缺 embedding」就不是缺陷，而是定位。
 
-### 13.4 共同的框法：RAG-as-a-tool
+### 14.5 共同的框法：RAG-as-a-tool
 
 在講兩條路之前，先講一件比選型更重要的事：**不要寫固定管線。**
 
@@ -1268,7 +1530,7 @@ def search_handbook(query: str, top_k: int = 3) -> str:
     """
 ```
 
-這其實就是第 7 節 Codebase Agent 的模式——那裡的 `search_code` 本質上就是一個 retrieval tool，只是當時沒叫它 RAG。
+這其實就是第 8 節 Codebase Agent 的模式——那裡的 `search_code` 本質上就是一個 retrieval tool，只是當時沒叫它 RAG。
 
 系統提示裡有一句是整個 RAG 品質的關鍵：
 
@@ -1278,7 +1540,7 @@ def search_handbook(query: str, top_k: int = 3) -> str:
 
 實測問「公司的年假規定是幾天？」（語料完全沒有），Agent 查完 `list_topics` 就回答「手冊未涵蓋此項內容。」——沒有幻覺。這句約束比任何檢索調校都有效。
 
-### 13.5 方案 B：純雲端，零 embedding
+### 14.6 方案 B：純雲端，零 embedding
 
 既然不能用向量，就用關鍵字。BM25 手寫不到六十行，不需要任何套件。
 
@@ -1320,7 +1582,7 @@ python examples/12_rag_cloud_only.py "資料庫遷移要注意什麼？"
 
 **優點**：完全不碰本地服務，Docker、Serverless、CI 都能跑，跟第 2 節的模式 B 一致。
 
-### 13.6 方案 A：混合式——本地 embedding + 雲端生成
+### 14.7 方案 A：混合式——本地 embedding + 雲端生成
 
 雲端沒有 embedding，但**你本機的 Ollama 有**。兩邊一起用：
 
@@ -1348,7 +1610,7 @@ def _embed(texts: list[str]) -> list[list[float]]:
 
 > **踩雷紀錄**：我第一次打本機 `/api/embed` 拿到 `501 This server does not support embeddings. Start it with --embeddings`。看起來像要重啟服務，其實不是——那是因為當時本機只有 `gemma4:12b` 這個**聊天**模型，runner 自然沒開 embedding 支援。`ollama pull` 一個真正的 embedding 模型就好，Ollama 本身不用動。
 
-### 13.7 向量 vs 關鍵字：什麼時候值得付這個複雜度
+### 14.8 向量 vs 關鍵字：什麼時候值得付這個複雜度
 
 這是本節最實用的部分。同一個語料，同一批問題，兩種檢索各自撈到什麼（`--compare`）：
 
@@ -1373,7 +1635,78 @@ def _embed(texts: list[str]) -> list[list[float]]:
 
 ---
 
-## 14. 正式上線前要處理的事
+### 14.9 怎麼自動驗證 RAG 的正確率
+
+上一節那張對照表是我手動看六題湊出來的。**手動看永遠不夠**——你改了切塊策略、換了 embedding 模型、調了 prompt，怎麼知道是變好還是變壞？
+
+答案是建一個評估集，然後每次改動都重跑。`examples/14_rag_eval.py` 是可執行的版本。
+
+**關鍵設計：分成兩層，因為 RAG 有兩個獨立的失敗點。**
+
+```
+檢索錯了      → 模型再強也答不對    ← 第一層抓這個
+檢索對了但答錯 → prompt 或生成的問題  ← 第二層抓這個
+```
+
+混在一起量，你永遠不知道該去修哪邊。
+
+**第一層：檢索指標（不花 GPU 時間，秒級跑完）**
+
+```bash
+python examples/14_rag_eval.py
+```
+
+```
+BM25 關鍵字檢索（13 題）
+  Recall@1 85%   Recall@3 100%   MRR 0.923
+    paraphrase     Recall@1 71% (5/7)
+    vocab-match    Recall@1 100% (6/6)
+
+向量語意檢索（13 題）
+  Recall@1 92%   Recall@3 100%   MRR 0.962
+    paraphrase     Recall@1 86% (6/7)
+    vocab-match    Recall@1 100% (6/6)
+```
+
+這組數字**用量化的方式證實了 14.8 節的定性結論**：用詞一致時兩者都是 100%，差距全部出在 `paraphrase`（71% vs 86%）。我在標註時就替每題標了 `phrasing`，所以能直接看到差在哪裡——**分組看比看總分有用得多**。
+
+這層不呼叫任何模型，所以可以在每次改動後無痛重跑。
+
+**第二層：端到端指標（要跑模型）**
+
+```bash
+python examples/14_rag_eval.py --end-to-end
+```
+
+三個指標：
+
+| 指標 | 量什麼 | 實測 |
+| --- | --- | --- |
+| 答案正確率 | 答案含不含標註的關鍵事實 | 85–100%（跑次間有波動） |
+| **拒答正確率** | 語料沒涵蓋時有沒有正確說「未涵蓋」 | 100% |
+| **忠實度** | LLM-as-judge：有沒有講檢索內容裡沒有的東西 | **77%** |
+
+**忠實度只有 77% 是這整節最有價值的發現。** 答案全對，但約四分之一的回答夾帶了手冊裡沒寫的內容——模型在自行發揮。例如問「不小心把密碼寫進程式碼了」，它回答時加了「立即將密碼從程式碼中移除，並提交新的 commit」，聽起來很合理，但手冊沒這樣寫。
+
+**這種失敗用眼睛看幾乎抓不到**，因為答案讀起來完全正確。只有把檢索脈絡和答案並排丟給判官模型才會現形。
+
+三個實作上的提醒：
+
+**一、判官也要用 tool calling 拿結構化結果。** 雲端不強制 `format`（第 9 節），所以我讓判官只回 Y/N 單字並用字首判斷。
+
+**二、評估工具自己也會有 bug。** 我第一版用字串比對，模型答「15 分鐘」卻被判成缺少「十五分鐘」——**RAG 是對的，是評估工具製造了假陰性**。中文數字與阿拉伯數字是這類評估最常見的坑。修法是讓每項關鍵事實可以是「可接受寫法」的陣列：
+
+```json
+{ "answer_must_contain": [["十五分鐘", "15 分鐘", "15分鐘"]] }
+```
+
+**三、端到端指標有隨機性。** 同一份評估集連跑兩次，正確率從 100% 掉到 85%，純粹是模型換了個說法。所以**單次結果不能當驗收標準**，要看趨勢，或把 `temperature` 固定並跑多次取多數。
+
+還有個容易誤解的地方：BM25 的 Recall@1 只有 85%，但端到端正確率卻是 100%。原因是 Recall@3 有 100%，而 Agent 一次取 3–5 段、還能換關鍵字重查——**agentic 檢索有自我修正能力，檢索的第一名不完美不代表答案會錯**。這也是為什麼兩層都要量。
+
+---
+
+## 15. 正式上線前要處理的事
 
 前面的程式碼是為了讀起來清楚。真的要上線，這幾件事跑不掉：
 
@@ -1401,10 +1734,10 @@ def chat_with_retry(client, max_retries=3, **kwargs):
 
 ### 成本控制
 
-第 12 節整節都在講這件事，這裡只補上線相關的兩點：
+第 13 節整節都在講這件事，這裡只補上線相關的兩點：
 
-- **配額與 rate limit**。免費方案除了模型受限（見 3.4），也有速率限制。正式跑之前看一下 [ollama.com/pricing](https://ollama.com/pricing) 的方案配額，並且在程式裡把 429 當成需要退避的錯誤處理。
-- **設預算告警**。GPU 時間計費的好處是可預估，前提是你真的有在看。把第 15 節的 trace 接起來，至少能回答「這個月哪個 Agent 吃掉最多時間」。
+- **配額與 rate limit**。免費方案除了模型受限（見 4.4），也有速率限制。正式跑之前看一下 [ollama.com/pricing](https://ollama.com/pricing) 的方案配額，並且在程式裡把 429 當成需要退避的錯誤處理。
+- **設預算告警**。GPU 時間計費的好處是可預估，前提是你真的有在看。把第 16 節的 trace 接起來，至少能回答「這個月哪個 Agent 吃掉最多時間」。
 
 ### 可觀測性
 
@@ -1422,13 +1755,13 @@ def chat_with_retry(client, max_retries=3, **kwargs):
 
 ---
 
-## 15. 接框架與可觀測性：LangChain / Langfuse / LangSmith
+## 16. 接框架與可觀測性：LangChain / Langfuse / LangSmith
 
 前面十二節都是手刻的。這節談什麼時候該把工作交給框架，以及一個比框架更該優先做的事——**可觀測性**。
 
-### 13.1 先講判準：什麼時候該用框架
+### 16.1 先講判準：什麼時候該用框架
 
-我的看法是：**先手刻過一次，再決定要不要用框架。** 你已經讀到這裡了，第 6 節那 40 行迴圈你看得懂，那麼任何框架對你來說都只是那個迴圈的包裝，不會變成黑盒子。
+我的看法是：**先手刻過一次，再決定要不要用框架。** 你已經讀到這裡了，第 7 節那 40 行迴圈你看得懂，那麼任何框架對你來說都只是那個迴圈的包裝，不會變成黑盒子。
 
 該用框架的訊號：
 
@@ -1441,7 +1774,7 @@ def chat_with_retry(client, max_retries=3, **kwargs):
 - 只是要跑個工具迴圈——手刻的 40 行更好懂、更好改、debug 時堆疊更淺
 - 想要框架幫你解決模型能力問題——它不會
 
-### 13.2 LangChain 接 Ollama Cloud
+### 16.2 LangChain 接 Ollama Cloud
 
 關鍵只有兩個參數：`base_url` 指到 `https://ollama.com`，`client_kwargs` 塞認證 header。
 
@@ -1478,14 +1811,14 @@ result = agent.invoke({'messages': [{'role': 'user', 'content': '台北和東京
 
 #### `with_structured_output()` 在雲端會壞掉
 
-這是第 8 節那個坑的連鎖效應，**值得單獨標出來**：
+這是第 9 節那個坑的連鎖效應，**值得單獨標出來**：
 
 ```python
 llm.with_structured_output(Country).invoke('Tell me about Canada.')
 # ❌ OutputParserException: Invalid json output: ## Canada – A Snapshot | Aspect | ...
 ```
 
-原因是它預設走 JSON mode，而 Ollama Cloud 不強制 `format`。解法是明講走 function calling——等於第 8 節的方案 A，只是由 LangChain 代勞：
+原因是它預設走 JSON mode，而 Ollama Cloud 不強制 `format`。解法是明講走 function calling——等於第 9 節的方案 A，只是由 LangChain 代勞：
 
 ```python
 structured = llm.with_structured_output(Country, method='function_calling')
@@ -1512,9 +1845,9 @@ resilient_agent = agent.with_retry(stop_after_attempt=3)
 
 完整範例在 `examples/09_langchain_agent.py`。
 
-### 13.3 Langfuse：把「可觀測性」從口號變成東西
+### 16.3 Langfuse：把「可觀測性」從口號變成東西
 
-第 14 節說「至少把每輪的 `tool_calls` 和 `thinking` 記下來」。Langfuse 就是拿來做這件事的：開源、可自架、與供應商無關。
+第 15 節說「至少把每輪的 `tool_calls` 和 `thinking` 記下來」。Langfuse 就是拿來做這件事的：開源、可自架、與供應商無關。
 
 用 `@observe` 標記，三種 `as_type` 對應 trace 上三種節點：
 
@@ -1577,7 +1910,7 @@ def run_agent(question: str, max_turns: int = 8) -> str:
 ● ollama-chat   type=generation  usage={"input":351,"output":23}
 ```
 
-注意 input token 從 200 → 297 → 351 一路長——**這就是 context 累積的樣子**，第 7 節講的「工具輸出一定要截斷」在這張圖上看得最清楚。
+注意 input token 從 200 → 297 → 351 一路長——**這就是 context 累積的樣子**，第 8 節講的「工具輸出一定要截斷」在這張圖上看得最清楚。
 
 接 LangChain 的話更省事，掛個 callback 就好：
 
@@ -1591,7 +1924,7 @@ agent.invoke({...}, config={'callbacks': [CallbackHandler()]})
 
 完整範例在 `examples/10_langfuse_tracing.py`。
 
-### 13.4 兩種 Langfuse 部署方式
+### 16.4 兩種 Langfuse 部署方式
 
 **雲端版**（最快上手）：到 [cloud.langfuse.com](https://cloud.langfuse.com) 開專案拿金鑰，三個環境變數就完事。
 
@@ -1632,7 +1965,7 @@ python examples/10_langfuse_tracing.py
 
 > 踩雷紀錄：Langfuse SDK v4 是 OpenTelemetry 架構，**預設用 protobuf 而不是 JSON** 送到 `/api/public/otel/v1/traces`。第一版的假 server 只會 `json.loads()`，收到的是一團二進位就以為沒收到。要裝 `opentelemetry-proto` 解碼才看得懂。
 
-### 13.5 LangSmith：什麼時候才選它
+### 16.5 LangSmith：什麼時候才選它
 
 LangSmith 是 LangChain 官方的託管觀測平台，功能定位跟 Langfuse 高度重疊。它其實**已經隨 `langchain-core` 一起裝進來了**，要開只是兩個環境變數：
 
@@ -1666,9 +1999,9 @@ def add(a: int, b: int) -> int:
 
 ---
 
-## 16. 結語
+## 17. 結語
 
-回頭看，整篇文章的核心其實只有第 6 節那個迴圈：
+回頭看，整篇文章的核心其實只有第 7 節那個迴圈：
 
 > **呼叫模型 → 有工具就執行 → 結果餵回去 → 重複，直到模型說完成。**
 
@@ -1678,17 +2011,17 @@ Agent 不是什麼魔法，是「一個會用工具的 while 迴圈」。難的�
 - 停止條件跟輪數上限（這決定它會不會失控）
 - 工具輸出的截斷跟錯誤處理（這決定它撐不撐得住真實資料）
 
-第 11 節的 MCP 也沒有改變這個結構——它只是把「工具從哪來」外包出去。迴圈還是那個迴圈，只是 `tools` 陣列不再是你手寫的函式，而是從別台 Server 撈回來的。這也是為什麼建議先手刻過第 6 節那 40 行再接 MCP：知道底下在做什麼，之後任何框架你都能一眼看穿。
+第 12 節的 MCP 也沒有改變這個結構——它只是把「工具從哪來」外包出去。迴圈還是那個迴圈，只是 `tools` 陣列不再是你手寫的函式，而是從別台 Server 撈回來的。這也是為什麼建議先手刻過第 7 節那 40 行再接 MCP：知道底下在做什麼，之後任何框架你都能一眼看穿。
 
 Ollama Cloud 在這條路上的貢獻，是把「模型能力」這個變數從等式裡拿掉了——你不用再為了跑得動而遷就一個工具呼叫時好時壞的小模型，也不用為了跑大模型去租 GPU。同一套 API，本地跟雲端隨你切。
 
 ### 下一步可以玩的
 
-- **把 MCP 接到底**：第 11 節只接了一台自製 Server，實務上會同時掛 GitHub、檔案系統、資料庫，再加上工具篩選與人工確認關卡
+- **把 MCP 接到底**：第 12 節只接了一台自製 Server，實務上會同時掛 GitHub、檔案系統、資料庫，再加上工具篩選與人工確認關卡
 - **多 Agent 分工**：一個 planner 負責拆任務，多個 worker 平行執行，最後 synthesizer 收斂
-- **RAG 進階**：第 13 節只做到單一檢索工具，實務上還有混合檢索（向量 + BM25 加權合併）、重排模型、以及檢索品質的離線評估
+- **RAG 進階**：第 14 節只做到單一檢索工具，實務上還有混合檢索（向量 + BM25 加權合併）、重排模型、以及檢索品質的離線評估
 - **記憶層**：把跨 session 的結論存進向量庫，讓 Agent 記得上次的發現
-- **降本實驗**：拿第 12 節的量測方法，對你自己的流量算一次損益平衡點，再決定路由策略
+- **降本實驗**：拿第 13 節的量測方法，對你自己的流量算一次損益平衡點，再決定路由策略
 
 ---
 

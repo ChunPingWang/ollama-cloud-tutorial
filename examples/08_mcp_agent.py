@@ -1,5 +1,9 @@
 """把 MCP Server 的工具接進 Ollama Cloud Agent。
 
+【這支教你什麼】把 MCP Server 的工具接進 Agent，30 行橋接
+【前置知識】03、04
+【下一支】11_model_router.py：開始談成本
+
 Ollama 沒有內建 MCP 支援，所以中間需要一層橋接：
   MCP 的 list_tools() → 轉成 Ollama 的 tools schema → 模型決定呼叫 →
   轉回 MCP 的 call_tool() → 結果塞回 messages。

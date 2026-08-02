@@ -1,5 +1,9 @@
 """Agent Loop 的最小骨架：模型自己決定要呼叫幾次工具、什麼時候收工。
 
+【這支教你什麼】Agent 的本質——一個會用工具的 while 迴圈（全文最核心的 40 行）
+【前置知識】02
+【下一支】04_codebase_agent.py：把這個骨架變成真的有用的東西
+
 用法:
     python examples/03_agent_loop.py
 """

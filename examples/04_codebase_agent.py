@@ -1,5 +1,9 @@
 """實戰：會自己翻專案、讀檔、搜尋，然後回答問題的 Codebase Agent。
 
+【這支教你什麼】真實 Agent 需要的防護：路徑邊界、輸出截斷、工具例外處理
+【前置知識】03
+【下一支】05_structured_output.py：讓輸出變成下游能用的資料
+
 用法:
     export AGENT_ROOT=/path/to/your/project
     python examples/04_codebase_agent.py "這個專案的進入點在哪裡？"

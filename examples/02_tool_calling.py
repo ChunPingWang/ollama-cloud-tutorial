@@ -1,5 +1,9 @@
 """最小的 tool calling 範例：模型要求呼叫工具，我們執行後把結果餵回去。
 
+【這支教你什麼】Agent 與聊天機器人的唯一差別：tool calling 的四個步驟
+【前置知識】01
+【下一支】03_agent_loop.py：把兩輪變成會自己收工的迴圈
+
 用法:
     python examples/02_tool_calling.py
 """

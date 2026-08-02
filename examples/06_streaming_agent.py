@@ -1,5 +1,9 @@
 """串流版的 Agent Loop：邊跑邊顯示思考與回覆。
 
+【這支教你什麼】串流時累積 tool_calls 的正確寫法（用 extend 不能用賦值）
+【前置知識】03
+【下一支】07_openai_compat.py：接既有生態系
+
 重點是 tool_calls 分片送來時要用 extend 累積，不能用賦值覆蓋。
 
 用法:

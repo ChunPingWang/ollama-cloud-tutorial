@@ -1,5 +1,9 @@
 """用 LangChain 接 Ollama Cloud，並用 Langfuse 的 CallbackHandler 追蹤。
 
+【這支教你什麼】用框架跑 Agent Loop，以及 with_structured_output 的雲端地雷
+【前置知識】03、05
+【下一支】10_langfuse_tracing.py：把 Agent 的行為記錄下來
+
 重點在 ChatOllama 的兩個參數：
     base_url      指到 https://ollama.com
     client_kwargs 塞 Authorization header

@@ -1,5 +1,9 @@
 """用 Langfuse 追蹤手刻的 Agent Loop。
 
+【這支教你什麼】可觀測性：把 thinking 與 tool_calls 變成可事後翻閱的 trace
+【前置知識】03
+【下一支】—（進階主題結束）
+
 第 12 節說「至少把每輪的 tool_calls 和 thinking 記下來」——這支就是把那句話
 變成可執行的東西。Agent 出錯時你要回答的是「它為什麼決定做這件事」，
 而那個答案只在 thinking 裡；Langfuse 讓它變成可以事後翻閱的樹狀 trace。
