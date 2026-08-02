@@ -1,0 +1,151 @@
+{
+  "_comment": "RAG 評估的標註資料集。expected_chunk 是人工標註的正確段落標題；answer_must_contain 的每一項是一個「必須出現的關鍵事實」，可以寫成字串，也可以寫成字串陣列代表可接受的多種寫法（例如 [\"十五分鐘\",\"15 分鐘\"]）——中文數字與阿拉伯數字的差異是最常見的假陰性來源；unanswerable 代表語料沒有涵蓋，正確行為是拒答。",
+  "cases": [
+    {
+      "id": "migrate-1",
+      "question": "資料庫遷移要注意什麼？",
+      "expected_chunk": "資料庫遷移",
+      "answer_must_contain": [
+        "回滾",
+        "nullable"
+      ],
+      "phrasing": "vocab-match"
+    },
+    {
+      "id": "migrate-2",
+      "question": "加一個新欄位到資料表，正確的做法是什麼？",
+      "expected_chunk": "資料庫遷移",
+      "answer_must_contain": [
+        "nullable"
+      ],
+      "phrasing": "paraphrase"
+    },
+    {
+      "id": "deploy-1",
+      "question": "正式環境可以直接 kubectl apply 嗎？",
+      "expected_chunk": "部署流程",
+      "answer_must_contain": [
+        "不要",
+        "同步"
+      ],
+      "phrasing": "vocab-match"
+    },
+    {
+      "id": "deploy-2",
+      "question": "怎麼避免改壞正式環境",
+      "expected_chunk": "部署流程",
+      "answer_must_contain": [
+        "GitOps"
+      ],
+      "phrasing": "paraphrase"
+    },
+    {
+      "id": "deploy-3",
+      "question": "緊急修復之後還要做什麼嗎？",
+      "expected_chunk": "部署流程",
+      "answer_must_contain": [
+        "PR"
+      ],
+      "phrasing": "paraphrase"
+    },
+    {
+      "id": "alert-1",
+      "question": "P1 告警的定義是什麼？多久要回應？",
+      "expected_chunk": "監控與告警",
+      "answer_must_contain": [
+        [
+          "十五分鐘",
+          "15 分鐘",
+          "15分鐘"
+        ]
+      ],
+      "phrasing": "vocab-match"
+    },
+    {
+      "id": "alert-2",
+      "question": "告警一直響但都不是真的問題，該怎麼辦？",
+      "expected_chunk": "監控與告警",
+      "answer_must_contain": [
+        "閾值"
+      ],
+      "phrasing": "paraphrase"
+    },
+    {
+      "id": "review-1",
+      "question": "PR 最多可以多少行？",
+      "expected_chunk": "程式碼審查",
+      "answer_must_contain": [
+        [
+          "四百",
+          "400"
+        ]
+      ],
+      "phrasing": "vocab-match"
+    },
+    {
+      "id": "review-2",
+      "question": "同事寫的東西太大包看不完，有什麼規定嗎？",
+      "expected_chunk": "程式碼審查",
+      "answer_must_contain": [
+        [
+          "四百",
+          "400"
+        ]
+      ],
+      "phrasing": "paraphrase"
+    },
+    {
+      "id": "secret-1",
+      "question": "測試環境的憑證可以寫在程式碼裡嗎？",
+      "expected_chunk": "密鑰管理",
+      "answer_must_contain": [
+        "不",
+        "gitleaks"
+      ],
+      "phrasing": "vocab-match"
+    },
+    {
+      "id": "secret-2",
+      "question": "不小心把密碼寫進程式碼了",
+      "expected_chunk": "密鑰管理",
+      "answer_must_contain": [
+        "Vault"
+      ],
+      "phrasing": "paraphrase"
+    },
+    {
+      "id": "incident-1",
+      "question": "事故發生時第一優先要做什麼？",
+      "expected_chunk": "事故處理",
+      "answer_must_contain": [
+        "止血"
+      ],
+      "phrasing": "vocab-match"
+    },
+    {
+      "id": "incident-2",
+      "question": "這個東西壞掉了要先回滾還是先查原因",
+      "expected_chunk": "事故處理",
+      "answer_must_contain": [
+        "回滾"
+      ],
+      "phrasing": "paraphrase"
+    },
+    {
+      "id": "unanswerable-1",
+      "question": "公司的年假規定是幾天？",
+      "expected_chunk": null,
+      "answer_must_contain": [],
+      "unanswerable": true,
+      "phrasing": "out-of-scope"
+    },
+    {
+      "id": "unanswerable-2",
+      "question": "報帳流程要找誰簽核？",
+      "expected_chunk": null,
+      "answer_must_contain": [],
+      "unanswerable": true,
+      "phrasing": "out-of-scope"
+    }
+  ]
+}
