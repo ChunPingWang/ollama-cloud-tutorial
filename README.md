@@ -108,7 +108,7 @@ check_docs.py          ← 文件一致性檢查（改文件後跑）
 | --- | --- | --- |
 | 1 | [為什麼是 Ollama Cloud](#1-為什麼是-ollama-cloud) | 入門 |
 | 2 | [兩種連線模式，先搞懂差別](#2-兩種連線模式先搞懂差別) | 入門 |
-| 3 | [技術棧與工具鏈全景](#3-技術棧與工具鏈全景) | 入門 |
+| 3 | [技術棧與工具鏈全景](#3-技術棧與工具鏈全景)　🗺 含 C4 系統全局圖 | 入門 |
 | 4 | [環境準備](#4-環境準備) | 入門 |
 
 **核心——Agent 的本質**
@@ -116,8 +116,8 @@ check_docs.py          ← 文件一致性檢查（改文件後跑）
 | 節 | 標題 | 難度 |
 | --- | --- | --- |
 | 5 | [Hello Cloud：第一次呼叫](#5-hello-cloud第一次呼叫) | 入門 |
-| 6 | [Agent 的心臟：Tool Calling](#6-agent-的心臟tool-calling) | 入門 |
-| 7 | [手刻 Agent Loop](#7-手刻-agent-loop) | ⭐ **最重要的一節** |
+| 6 | [Agent 的心臟：Tool Calling](#6-agent-的心臟tool-calling)　🔀 含時序圖 | 入門 |
+| 7 | [手刻 Agent Loop](#7-手刻-agent-loop)　🔀 含時序圖 | ⭐ **最重要的一節** |
 | 8 | [實戰：一個會讀專案的 Codebase Agent](#8-實戰一個會讀專案的-codebase-agent) | 中階 |
 
 **進階——需要哪塊看哪塊**（獨立文件，見 [docs/](docs/README.md)）
@@ -213,7 +213,7 @@ resp = client.chat(model='gpt-oss:120b', messages=[...])   # 注意：沒有 -cl
 ┌─────────────────────────────────────────────────────────────┐
 │  你的 Agent 程式（Python）                                    │
 │                                                              │
-│   while True:  呼叫模型 → 有工具就執行 → 結果餵回 → 重複        │  ← [〈手刻 Agent Loop〉](#7-手刻-agent-loop)
+│   while True:  呼叫模型 → 有工具就執行 → 結果餵回 → 重複        │  ← 第 7 節
 └───┬──────────────┬──────────────┬──────────────┬────────────┘
     │              │              │              │
     │ 推論          │ 工具          │ 知識          │ 觀測
@@ -227,12 +227,157 @@ resp = client.chat(model='gpt-oss:120b', messages=[...])   # 注意：沒有 -cl
 │ 本地     │  │ MCP       │  │ 向量比對   │  │ 結構化 log │
 │  Ollama │  │  Server   │  │ 重排       │  │           │
 └─────────┘  └───────────┘  └───────────┘  └───────────┘
-  [〈兩種連線模式，先搞懂差別〉](#2-兩種連線模式先搞懂差別)       第 6/12 節      [〈RAG〉](docs/06-rag.md)        [〈接框架與可觀測性〉](docs/08-frameworks-observability.md)
+    第 2 節         第 6 節        進階：RAG      進階：可觀測性
 ```
+
+| 層 | 講在哪裡 |
+| --- | --- |
+| 中央的 `while` 迴圈 | [第 7 節 手刻 Agent Loop](#7-手刻-agent-loop) |
+| 模型層 | [第 2 節 兩種連線模式](#2-兩種連線模式先搞懂差別) |
+| 工具層 | [第 6 節 Tool Calling](#6-agent-的心臟tool-calling)、[接上 MCP](docs/04-mcp.md) |
+| 檢索層 | [RAG 與自動化評估](docs/06-rag.md) |
+| 可觀測層 | [框架與可觀測性](docs/08-frameworks-observability.md) |
 
 四層裡面，**只有模型層和工具層是必要的**。檢索層要等你需要讓 Agent 讀你自己的文件才用得到，可觀測層要等你上線才會痛。初學者照這個順序點技能樹就好。
 
-### 3.2 逐層說明：每個零件解決什麼問題
+### 3.2 系統全局：C4 Model
+
+上面那張是「零件分層」，回答的是**有哪些種類的零件**。這節換一個角度：用 [C4 Model](https://c4model.com/) 由外而內拉遠鏡頭再推近，回答三個不同的問題。
+
+| 層級 | 回答的問題 | 對應到本文 |
+| --- | --- | --- |
+| **L1 系統情境** | 這套系統的邊界在哪？跟外面的誰互動？ | 第 2 節（兩種連線模式） |
+| **L2 容器** | 系統內部由哪些可獨立執行／部署的東西組成？ | 第 8 節 + [部署上線](docs/12-deployment.md) |
+| **L3 元件** | 最核心的那個容器裡面怎麼分工？ | 第 7 節（Agent Loop） |
+
+C4 還有一層 L4（程式碼），那就是第 7、8 節貼出來的原始碼本身，不另外畫。
+
+#### L1 系統情境：邊界在哪裡
+
+```mermaid
+flowchart TB
+    user(["使用者<br/>〔Person〕"])
+
+    subgraph boundary["── 你要建的系統 ──"]
+        agent["AI Agent<br/>〔Software System〕<br/>接問題 → 規劃步驟 → 呼叫工具 → 給答案"]
+    end
+
+    cloud["Ollama Cloud<br/>〔External System〕<br/>託管 120B 級模型<br/>按 GPU 時間計費"]
+    local["本地 Ollama（選用）<br/>〔External System〕<br/>embedding、離線推論、微調"]
+    mcp["MCP Server（選用）<br/>〔External System〕<br/>GitHub / 檔案系統 / 資料庫"]
+    obs["Langfuse（選用）<br/>〔External System〕<br/>收 trace 與用量"]
+    data[("你的資料<br/>〔External〕<br/>專案檔案、Markdown 語料")]
+
+    user -->|"提問／收到答案"| agent
+    agent -->|"必要：chat()<br/>HTTPS + Bearer"| cloud
+    agent -->|"選用：embed()<br/>HTTP :11434"| local
+    agent -->|"選用：list_tools／call_tool<br/>stdio"| mcp
+    agent -->|"選用：OTLP span"| obs
+    agent -->|"唯讀存取"| data
+
+    classDef person fill:#08427b,stroke:#052e56,color:#ffffff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#ffffff
+    classDef ext fill:#767676,stroke:#4d4d4d,color:#ffffff
+    class user person
+    class agent system
+    class cloud,local,mcp,obs,data ext
+    style boundary fill:transparent,stroke:#1168bd,stroke-width:2px,stroke-dasharray:6 4
+```
+
+**這張圖最該記住的一件事：`Ollama Cloud` 在框外。**
+
+它是**外部系統**，不是你的一部分。所以它會偶發 500（[框架與可觀測性](docs/08-frameworks-observability.md)實測撞到過）、會改版、會下架模型（[硬體選型](docs/13-hardware.md)提到的版本確定性問題）。你能控制的只有虛線框裡面那塊——這也是為什麼[重試機制](docs/07-production.md)不是加分項而是必需品。
+
+第二件事：**六條線裡只有一條標「必要」**。其餘全是選用。這跟 3.1 說的「只有模型層和工具層是必要的」是同一件事，只是換個角度看。
+
+#### L2 容器：推近一層，系統內部有什麼
+
+「容器」在 C4 裡不是指 Docker，是指**可以獨立執行或部署的東西**——一個行程、一份資料庫、一組檔案。
+
+```mermaid
+flowchart TB
+    user(["使用者／上游服務"])
+
+    subgraph sys["── AI Agent 系統 ──"]
+        direction TB
+        api["HTTP 服務<br/>〔Python 標準函式庫〕<br/>/healthz /readyz /ask<br/>逾時、限流、優雅關閉<br/>18_deploy_server.py"]
+        agentloop["Agent Loop<br/>〔Python〕<br/>呼叫模型 → 執行工具 → 餵回 → 重複<br/>03_agent_loop.py／04_codebase_agent.py"]
+        tools["工具集<br/>〔Python 函式〕<br/>list_files／read_file／search_code<br/>docstring 即 schema"]
+        rag["檢索模組<br/>〔純 Python，零依賴〕<br/>切塊 + BM25，約 120 行<br/>rag_common.py"]
+        mem[("長期記憶<br/>〔SQLite〕<br/>subject／fact／superseded<br/>17_persistent_memory.py")]
+        corpus[("語料<br/>〔Markdown〕<br/>examples/corpus/")]
+    end
+
+    cloud["Ollama Cloud<br/>〔External〕"]
+    obs["Langfuse（選用）<br/>〔External〕"]
+
+    user -->|"POST /ask<br/>JSON over HTTPS"| api
+    api -->|"run_agent(question)<br/>行程內呼叫"| agentloop
+    agentloop -->|"chat(messages, tools)<br/>每輪一次，這裡在燒 GPU 時間"| cloud
+    cloud -.->|"message + tool_calls"| agentloop
+    agentloop -->|"依名稱分派"| tools
+    tools -->|"檢索也只是一個工具"| rag
+    tools -->|"remember／recall"| mem
+    rag -->|"啟動時載入"| corpus
+    agentloop -.->|"span"| obs
+
+    classDef person fill:#08427b,stroke:#052e56,color:#ffffff
+    classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
+    classDef store fill:#438dd5,stroke:#2e6295,color:#ffffff
+    classDef ext fill:#767676,stroke:#4d4d4d,color:#ffffff
+    class user person
+    class api,agentloop,tools,rag container
+    class mem,corpus store
+    class cloud,obs ext
+    style sys fill:transparent,stroke:#1168bd,stroke-width:2px,stroke-dasharray:6 4
+```
+
+三個值得注意的地方：
+
+- **框裡面完全沒有推論引擎。** 因為我們走[模式 B（直連 API）](#2-兩種連線模式先搞懂差別)，容器裡只需要一個 HTTP client——實測映像檔 209MB。走模式 A 的話這裡會多一顆好幾 GB 的 Ollama runtime，見[部署上線](docs/12-deployment.md#1-為什麼容器裡沒有-ollama)。
+- **檢索模組掛在「工具集」底下，不是掛在 Agent Loop 旁邊。** 這是刻意的：RAG 在這裡是 Agent 自己決定要不要用的一個工具，不是寫死在前面的固定管線。差別見 [RAG 那篇](docs/06-rag.md)。
+- **只有兩個東西有狀態**（SQLite 與語料）。這決定了你能不能水平擴展，見[部署上線第 5 節](docs/12-deployment.md#5-狀態要放哪裡)。
+
+#### L3 元件：Agent Loop 容器裡面怎麼分工
+
+```mermaid
+flowchart TB
+    subgraph inner["── Agent Loop 容器內部 ──"]
+        direction TB
+        guard["輪數守衛<br/>max_turns，防模型鬼打牆"]
+        msgs[("messages<br/>對話狀態<br/>逐輪累積，狀態在你手上")]
+        client["RetryingClient<br/>只重試 5xx 與連線錯誤<br/>4xx 直接拋，重試也沒用<br/>_client.py"]
+        dispatch["工具分派表 AVAILABLE<br/>名稱 → 函式<br/>未知工具回錯誤字串，不 crash"]
+        trim["Context 修剪（選用）<br/>滑動視窗／摘要壓縮<br/>15_conversation_memory.py"]
+    end
+
+    cloud["Ollama Cloud<br/>〔External〕"]
+    tools["工具集<br/>〔其他容器〕"]
+
+    guard -->|"① 每輪先檢查沒超過上限"| client
+    msgs -->|"② 整份對話送出"| client
+    client -->|"③ HTTPS + Bearer"| cloud
+    cloud -.->|"④ message：thinking／content／tool_calls"| client
+    client -->|"⑤ append assistant 訊息"| msgs
+    client -->|"⑥ 有 tool_calls 才走這條"| dispatch
+    dispatch -->|"⑦ fn(**arguments)"| tools
+    tools -.->|"⑧ 結果字串"| dispatch
+    dispatch -->|"⑨ append role=tool"| msgs
+    msgs -->|"太長時"| trim
+    trim -->|"寫回"| msgs
+
+    classDef comp fill:#85bbf0,stroke:#5d82a8,color:#000000
+    classDef ext fill:#767676,stroke:#4d4d4d,color:#ffffff
+    class guard,msgs,client,dispatch,trim comp
+    class cloud,tools ext
+    style inner fill:transparent,stroke:#1168bd,stroke-width:2px,stroke-dasharray:6 4
+```
+
+`messages` 被畫成資料形狀是有意的：**它是整個 Agent 唯一的狀態**。雲端不記得上一輪，每次呼叫你都得把整份對話重送一次——這件事同時解釋了三個現象：為什麼長任務會越跑越貴（[成本控制](docs/05-cost.md)）、為什麼要修剪 context（[Context 管理](docs/09-memory-context.md)）、以及為什麼 Agent 這麼好測試（[測試 Agent](docs/10-testing.md)——換掉 client 就能離線跑完整個迴圈）。
+
+上面的 ①～⑨ 是靜態的分工。實際跑起來的**時序**在第 7 節有一張 sequence diagram。
+
+### 3.3 逐層說明：每個零件解決什麼問題
 
 #### 模型層
 
@@ -280,7 +425,7 @@ resp = client.chat(model='gpt-oss:120b', messages=[...])   # 注意：沒有 -cl
 | --- | --- | --- |
 | **LangChain / LangGraph** | checkpoint、中斷續跑、人在迴圈中 | **先手刻過一次再用**。不然框架對你是黑盒子 |
 
-### 3.3 三種常見組合
+### 3.4 三種常見組合
 
 **組合一：最小可用 Agent**（第 5–8 節）
 
@@ -299,14 +444,14 @@ ollama SDK  +  切塊 + BM25  +  檢索當作工具
 
 注意這裡**沒有向量資料庫**。六個段落用 Python list 掃就好，加了只是徒增部署複雜度。
 
-**組合三：上線形態**（第 15–16 節）
+**組合三：上線形態**（[正式上線前要處理的事](docs/07-production.md)、[測試](docs/10-testing.md)、[部署上線](docs/12-deployment.md)）
 
 ```
 組合一或二  +  重試機制  +  Langfuse trace  +  max_turns 上限
             +  評估資料集（改動前後跑一次，確認沒退步）
 ```
 
-### 3.4 這個 repo 用到的完整清單
+### 3.5 這個 repo 用到的完整清單
 
 | 套件 | 版本 | 用在哪 | 必要性 |
 | --- | --- | --- | --- |
@@ -504,6 +649,35 @@ Agent 跟一般聊天機器人的差別只有一句話：**Agent 能對外部世
 3. **你的程式**實際執行那個函式（模型不會也不能自己執行）
 4. 把執行結果以 `role: 'tool'` 塞回對話，再問模型一次
 
+畫成時序圖：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 使用者
+    participant P as 你的程式
+    participant C as Ollama Cloud
+    participant F as 你的 Python 函式
+
+    U->>P: 台北現在幾度？
+    P->>C: chat(messages, tools=[get_temperature])
+    Note right of P: SDK 從型別標註 + docstring<br/>自動生成 JSON Schema 一起送出
+    C-->>P: message.tool_calls
+    Note over C: 模型只「要求」呼叫<br/>它不會、也不能自己執行
+    P->>F: get_temperature(city="Taipei")
+    F-->>P: "31°C"
+    P->>P: messages.append(role="tool", content="31°C")
+    P->>C: chat(messages) ← 第二次呼叫
+    C-->>P: message.content
+    P-->>U: 台北目前 31°C
+```
+
+從這張圖可以直接讀出三件初學者最常搞錯的事：
+
+- **第 3 步跟第 5 步之間有一道牆。** 模型回的 `tool_calls` 只是一份「請幫我執行這個」的請求，執行者從頭到尾都是**你的程式**。模型碰不到你的檔案系統，這是設計，不是限制。
+- **一次工具呼叫要打雲端兩次**（第 2 步、第 8 步）。這是 [GPU 時間計費](docs/05-cost.md)的基本單位——工具越多輪，帳單越長。
+- **第 7 步那個 `append` 沒有它就全錯。** 忘記把工具結果塞回 `messages`，模型第二次呼叫時會完全不知道剛才發生過什麼。
+
 Ollama 的 Python SDK 有個很省事的設計：**直接把 Python 函式丟進 `tools=[]`，它會自動從型別標註和 docstring 生成 schema。**
 
 `examples/02_tool_calling.py`：
@@ -569,6 +743,48 @@ while True:
     有 tool_calls？ → 執行、把結果塞回去、繼續迴圈
     沒有？          → 模型認為任務完成了，跳出
 ```
+
+上一節那張圖是**寫死兩輪**。把它包進迴圈之後，完整的呼叫順序長這樣——這是整份教材最該看懂的一張圖：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 使用者
+    participant L as Agent Loop
+    participant M as messages
+    participant C as Ollama Cloud
+    participant T as 工具函式
+
+    U->>L: 請計算 (11434 + 12341) * 412
+    L->>M: 放入 system + user 訊息
+
+    loop 直到模型不再要求工具，或撞到 max_turns
+        M-->>L: 目前的整份對話
+        L->>C: chat(model, messages, tools, think=True)
+        Note right of C: 每一輪都把「整份」對話重送<br/>雲端不記得上一輪<br/>狀態完全在你手上
+        C-->>L: message：thinking／content／tool_calls
+
+        L->>M: append(assistant 訊息)
+
+        alt 有 tool_calls
+            L->>T: fn(**arguments)
+            T-->>L: 結果字串（失敗也回字串，不丟例外）
+            L->>M: append(role="tool", 結果)
+            Note over L,M: 回到迴圈開頭，再打一次雲端
+        else 沒有 tool_calls
+            L-->>U: message.content 就是最終答案
+            Note over L: 跳出迴圈
+        end
+    end
+```
+
+三個從圖上直接看得出來的性質：
+
+- **迴圈邊界就是計費邊界。** 每繞一圈就是一次 `chat()`，一次 GPU 時間。`max_turns` 不只是防當機，它是[成本上限](docs/05-cost.md)。
+- **`messages` 只進不出。** 圖上所有指向 `M` 的箭頭都是 `append`，沒有一個是刪除。所以長任務的 context 會單調成長，這正是 [Context 管理](docs/09-memory-context.md) 那篇要解決的問題。
+- **`Ollama Cloud` 只出現在一條線上。** 把那條線換成假的回應，整個迴圈就能離線跑完——[測試 Agent](docs/10-testing.md) 的 18 個測試 0.2 秒跑完、一毛錢不花，靠的就是這個結構。
+
+對照 [3.2 的 L3 元件圖](#l3-元件agent-loop-容器裡面怎麼分工)：那張是靜態分工（誰負責什麼），這張是動態時序（什麼時候發生）。同一段程式碼的兩個切面。
 
 `examples/03_agent_loop.py`：
 
